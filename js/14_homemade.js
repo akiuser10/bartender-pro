@@ -113,6 +113,7 @@ function openHMModal(id=null) {
   _hsv('hm-track-inv', h?.trackInv!==false ? '1' : '0');
   _hsv('hm-alcoholic', h?.isAlcoholic ? '1' : '0');
   _hsv('hm-tare', h?.tare||'');
+  _hsv('hm-full-weight', h?.fullWeight||'');
   hmIngRows = h?.lines ? h.lines.map(l=>({...l})) : [];
   renderHMIngRows();
   document.getElementById('hm-modal').classList.add('open');
@@ -177,7 +178,8 @@ function saveHMItem() {
     minPar:   parseFloat(document.getElementById('hm-min-par')?.value)||0,
     trackInv: document.getElementById('hm-track-inv')?.value === '1',
     isAlcoholic: document.getElementById('hm-alcoholic')?.value === '1',
-    tare:     parseFloat(document.getElementById('hm-tare')?.value)||0,
+    tare:       parseFloat(document.getElementById('hm-tare')?.value)||0,
+    fullWeight: parseFloat(document.getElementById('hm-full-weight')?.value)||0,
     lines: hmIngRows.filter(r=>r.ingId&&r.qty>0),
     totalCost, costPerUnit,
     createdAt: new Date().toISOString(),

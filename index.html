@@ -534,7 +534,15 @@
               Empty Bottle / Container Weight (tare)
             </label>
             <input type="number" id="hm-tare" placeholder="e.g. 380" min="0" step="1">
-            <div class="input-hint" style="color:var(--smoke)">Weigh the empty bottle in grams. Used to calculate net liquid during inventory count.</div>
+            <div class="input-hint" style="color:var(--smoke)">Weigh the empty bottle in grams.</div>
+          </div>
+          <div class="input-group">
+            <label class="input-label" style="display:flex;align-items:center;gap:6px">
+              <i class="fa-solid fa-weight-scale" style="color:var(--gold);font-size:11px"></i>
+              Full Bottle Weight
+            </label>
+            <input type="number" id="hm-full-weight" placeholder="e.g. 1250" min="0" step="1">
+            <div class="input-hint" style="color:var(--smoke)">Weigh the sealed/full bottle in grams. When both weights are set, remaining volume is calculated by weight ratio instead of density — more accurate for viscous batches.</div>
           </div>
         </div>
         <div class="input-group">
@@ -967,14 +975,22 @@
           Empty Bottle Weight (tare)
         </label>
         <input type="number" id="ing-tare" placeholder="e.g. 380" min="0" step="1">
-        <div class="input-hint" style="color:var(--smoke)">Weigh the empty bottle in grams. Subtracted from gross weigh-in during inventory.</div>
+        <div class="input-hint" style="color:var(--smoke)">Weigh the empty bottle in grams.</div>
       </div>
+      <div class="input-group">
+        <label class="input-label" style="display:flex;align-items:center;gap:6px">
+          <i class="fa-solid fa-weight-scale" style="color:var(--gold);font-size:11px"></i>
+          Full Bottle Weight
+        </label>
+        <input type="number" id="ing-full-weight" placeholder="e.g. 1250" min="0" step="1">
+        <div class="input-hint" style="color:var(--smoke)">Weigh the sealed/full bottle in grams. When both weights are set, remaining volume is calculated by weight ratio instead of density — more accurate for viscous liquids.</div>
+      </div>
+    </div>
+    <div class="form-row">
       <div class="input-group">
         <label class="input-label">Max Par (units)</label>
         <input type="number" id="ing-max-par" placeholder="e.g. 6" min="0">
       </div>
-    </div>
-    <div class="form-row">
       <div class="input-group">
         <label class="input-label">Min Par (units)</label>
         <input type="number" id="ing-min-par" placeholder="e.g. 2" min="0">

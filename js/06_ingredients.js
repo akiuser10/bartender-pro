@@ -426,6 +426,7 @@ function openIngModal(id=null) {
   _sv('ing-density', m?.density||'');
   _sv('ing-brix', m?.brix||'');
   _sv('ing-tare', m?.tare||'');
+  _sv('ing-full-weight', m?.fullWeight||'');
   _sv('ing-max-par', m?.maxPar||'');
   _sv('ing-min-par', m?.minPar||'');
   // Show warning if no suppliers exist yet
@@ -484,7 +485,8 @@ function saveIngredient() {
     supplier: document.getElementById('ing-supplier').value.trim(),
     desc, cat,
     unitSize, cost, abv, density, brix: parseFloat(document.getElementById('ing-brix').value)||0,
-    tare:   parseFloat(document.getElementById('ing-tare').value)||0,
+    tare:       parseFloat(document.getElementById('ing-tare').value)||0,
+    fullWeight: parseFloat(document.getElementById('ing-full-weight').value)||0,
     maxPar: parseFloat(document.getElementById('ing-max-par').value)||0,
     minPar: parseFloat(document.getElementById('ing-min-par').value)||0,
     costPerGram,
@@ -552,6 +554,21 @@ function getInvEntry(id) {
   return { sealedBtls:0, openBtls:1, openGrams:0, measuredBy:'', measuredAt:'', ...e };
 }
 
+// Converts a gross weigh-in of a partially full container to net ml.
+// When both tare (empty weight) and fullWeight (sealed/full weight) are set,
+// uses the weight-ratio method: netCurrent/netFull * unitMl — this is
+// calibrated against an actual full weighing, so it's accurate even when the
+// liquid's real density isn't precisely known (purees, syrups, etc). Falls
+// back to the density-based estimate when fullWeight isn't set.
+function netMlFromWeight(grossGrams, tareGrams, fullWeightGrams, unitMl, density) {
+  const netGrams = Math.max(0, grossGrams - tareGrams);
+  if (fullWeightGrams > tareGrams) {
+    const netFull = fullWeightGrams - tareGrams;
+    return unitMl * (netGrams / netFull);
+  }
+  return netGrams / (density || 1);
+}
+
 function calcTotalMl(ing, entry) {
   const isLiq      = isLiquidCat(ing.cat);
   const isSealOnly = isSealedOnlyCat(ing.cat);
@@ -571,8 +588,7 @@ function calcTotalMl(ing, entry) {
   const tare       = ing.tare || 0;
   const openBtls   = Math.max(1, entry.openBtls||1);
   const grossGrams = entry.openGrams||0;
-  const netGrams   = Math.max(0, grossGrams - (tare * openBtls));
-  const openMl     = netGrams / (ing.density||1);
+  const openMl     = netMlFromWeight(grossGrams, tare * openBtls, (ing.fullWeight||0) * openBtls, unitMl, ing.density);
   return sealedMl + openMl;
 }
 
@@ -645,7 +661,7 @@ function renderInventory() {
       // e.g. 1 sealed + 350ml open in 700ml bottle = 1 + 0.50 = 1.50 btl
       const tare       = ing.tare || 0;
       const netGrams   = isLiq ? Math.max(0, openGrams - (tare * openBtls)) : openGrams;
-      const openMl     = isLiq ? netGrams / (ing.density||1) : 0;
+      const openMl     = isLiq ? netMlFromWeight(openGrams, tare * openBtls, (ing.fullWeight||0) * openBtls, unitMl, ing.density) : 0;
       const openBtlFraction = unitMl > 0 ? openMl / unitMl : 0; // e.g. 350ml/700ml = 0.50
       const totalBtlDecimal = sealedBtls + openBtlFraction;
 
@@ -791,6 +807,7 @@ function renderInventory() {
     const unitMl  = h.yieldQty || 1000;
     const density = h.density || 1.0;
     const tare    = h.tare || 0;
+    const fullWeight = h.fullWeight || 0;
 
     // Alcoholic liquid HM items → same 3-input bottle system as ingredients
     const isAlcLiq = h.isAlcoholic && h.yieldUnit === 'ml';
@@ -801,8 +818,7 @@ function renderInventory() {
       const sealedBtls  = inv.sealedBtls || 0;
       const openBtls    = Math.max(1, inv.openBtls || 1);
       const openGrams   = inv.openGrams || 0;
-      const netGrams    = Math.max(0, openGrams - (tare * openBtls));
-      const openMl      = netGrams / density;
+      const openMl      = netMlFromWeight(openGrams, tare * openBtls, fullWeight * openBtls, unitMl, density);
       const openFrac    = unitMl > 0 ? openMl / unitMl : 0;
       totalBtlDecimal   = sealedBtls + openFrac;
       curQty            = Math.round(totalBtlDecimal * unitMl); // total ml
@@ -829,7 +845,7 @@ function renderInventory() {
     const openGrams2 = inv.openGrams || 0;
     const openBtls2  = Math.max(1, inv.openBtls||1);
     const netG2      = Math.max(0, openGrams2 - (tare * openBtls2));
-    const openMl2    = isAlcLiq ? netG2 / density : 0;
+    const openMl2    = isAlcLiq ? netMlFromWeight(openGrams2, tare * openBtls2, fullWeight * openBtls2, unitMl, density) : 0;
     const tareNote   = isAlcLiq && openGrams2 > 0
       ? (tare > 0
           ? `${openGrams2}g−${tare*openBtls2}g=${netG2}g→${openMl2.toFixed(0)}ml`
@@ -951,7 +967,7 @@ function updateInvField(id, field, val) {
   const openBtls    = Math.max(1, entry.openBtls||1);
   const tare        = ing.tare||0;
   const netGrams    = Math.max(0, openGrams - (tare * openBtls));
-  const openMl      = isLiq ? netGrams / (ing.density||1) : isSealOnly ? 0 : openGrams;
+  const openMl      = isLiq ? netMlFromWeight(openGrams, tare * openBtls, (ing.fullWeight||0) * openBtls, unitMl, ing.density) : isSealOnly ? 0 : openGrams;
   const openBtlFrac = (isLiq && unitMl > 0) ? openMl / unitMl : 0;
   const totalBtlDec = sealedBtls + openBtlFrac;
   const hasData     = sealedBtls > 0 || openGrams > 0;
@@ -1003,11 +1019,12 @@ function updateHMInvField(id, field, val) {
   const unitMl   = hm.yieldQty || 1000;
   const density  = hm.density || 1.0;
   const tare     = hm.tare || 0;
+  const fullWeight = hm.fullWeight || 0;
   const sealed   = inv.sealedBtls || 0;
   const openBtls = Math.max(1, inv.openBtls || 1);
   const gross    = inv.openGrams || 0;
   const netG     = Math.max(0, gross - (tare * openBtls));
-  const openMl   = netG / density;
+  const openMl   = netMlFromWeight(gross, tare * openBtls, fullWeight * openBtls, unitMl, density);
   const openFrac = unitMl > 0 ? openMl / unitMl : 0;
   const totalBtl = sealed + openFrac;
   const totalMl  = Math.round(totalBtl * unitMl);
