@@ -4930,6 +4930,15 @@ function buildSyncPayload() {
   payload.customRecipes       = recSync.custom;
   payload.homeMadeOverrides   = hmSync.overrides;
   payload.customHomeMade      = hmSync.custom;
+
+  // The company logo is a raw base64 image with no size cap (can run into MBs)
+  // — it has no business in a 100KB JSON sync payload. Keep it local to each
+  // device instead of syncing it; every other company field still syncs fine.
+  if (payload.company && payload.company.logo) {
+    payload.company = { ...payload.company };
+    delete payload.company.logo;
+  }
+
   return payload;
 }
 
@@ -5021,7 +5030,12 @@ async function cloudPoll() {
     if (remoteTs > _lastPushedAt) {
       // Remote has changes we don't have — apply them
       const before = JSON.stringify(state);
+      const localLogo = state.company?.logo; // not synced (see buildSyncPayload) — don't lose it
       Object.assign(state, remote);
+      if (localLogo && !state.company?.logo) {
+        if (!state.company) state.company = {};
+        state.company.logo = localLogo;
+      }
       applyIngredientSync(remote);
       try { localStorage.setItem('barmanager_v1', JSON.stringify(state)); } catch(e) {}
       if (JSON.stringify(state) !== before) {
@@ -5137,7 +5151,12 @@ async function cloudPull(silent=false) {
     if (data.record) {
       const pulled = data.record;
       _lastPushedAt = pulled._updatedAt || 0;
+      const localLogo = state.company?.logo; // not synced (see buildSyncPayload) — don't lose it
       Object.assign(state, pulled);
+      if (localLogo && !state.company?.logo) {
+        if (!state.company) state.company = {};
+        state.company.logo = localLogo;
+      }
       applyIngredientSync(pulled);
       try { localStorage.setItem('barmanager_v1', JSON.stringify(state)); } catch(e) {}
       renderAll();
