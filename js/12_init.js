@@ -127,10 +127,12 @@ async function syncNow(btn) {
   const icon = btn?.querySelector('i');
   if (icon) icon.classList.add('fa-spin');
   if (btn) btn.disabled = true;
-  setSyncStatus('☁ Syncing…', 'var(--smoke)');
   try {
-    await cloudPull(true);
-    await cloudPush();
+    // non-silent: on failure this sets its own specific status (auth error,
+    // pull failed (status), or the real thrown-error message) instead of us
+    // guessing. Only proceed to push if that pull actually succeeded.
+    await cloudPull(false);
+    if (_cloudSyncReady) await cloudPush();
   } finally {
     if (icon) icon.classList.remove('fa-spin');
     if (btn) btn.disabled = false;
@@ -200,7 +202,7 @@ async function cloudPoll() {
       }
     }
     showLastSynced();
-  } catch(e) {} // silent poll failures
+  } catch(e) { console.error('[cloudPoll]', e); } // no UI noise, but still logged
 }
 
 function renderAll() {
@@ -274,7 +276,12 @@ async function cloudPush() {
       setSyncStatus(`☁ Sync error (${resp.status})`, 'var(--warning)');
     }
   } catch(e) {
-    setSyncStatus('☁ Offline — saved locally', 'var(--smoke)');
+    console.error('[cloudPush]', e);
+    // A thrown fetch error isn't necessarily "offline" — an invalid Bin ID/Master
+    // Key (bad characters from a copy-paste) makes the browser reject the request
+    // before it ever reaches the network, throwing the same way a real network
+    // failure would. Surface the real message so this is diagnosable without devtools.
+    setSyncStatus('☁ Sync failed — ' + (e?.message || 'offline') + ' (check Bin ID/Key)', 'var(--warning)');
     setTimeout(() => cloudPush(), 30000);
   }
 }
@@ -309,7 +316,8 @@ async function cloudPull(silent=false) {
       setTimeout(showLastSynced, 3000);
     }
   } catch(e) {
-    if (!silent) setSyncStatus('☁ Pull failed — check connection', 'var(--warning)');
+    console.error('[cloudPull]', e);
+    if (!silent) setSyncStatus('☁ Pull failed — ' + (e?.message || 'check connection'), 'var(--warning)');
   }
 }
 

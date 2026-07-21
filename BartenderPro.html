@@ -1315,11 +1315,11 @@ tr.ing-selected { background: rgba(201,168,76,0.05); }
         <div class="form-row">
           <div class="input-group">
             <label class="input-label">JSONBin Bin ID</label>
-            <input type="text" id="setting-binid" placeholder="e.g. 64a3b2c1d0e9f8a7..." oninput="state.jsonbinId=this.value.trim();save();updateSyncButtonVisibility();if(state.jsonbinId&&state.jsonbinKey){cloudPull().then(()=>startPolling());}">
+            <input type="text" id="setting-binid" placeholder="e.g. 64a3b2c1d0e9f8a7..." oninput="state.jsonbinId=this.value.replace(/\s/g,'');save();updateSyncButtonVisibility();if(state.jsonbinId&&state.jsonbinKey){cloudPull().then(()=>startPolling());}">
           </div>
           <div class="input-group">
             <label class="input-label">Master Key (keep secret)</label>
-            <input type="password" id="setting-binkey" placeholder="$2a$10$..." oninput="state.jsonbinKey=this.value.trim();save();updateSyncButtonVisibility();if(state.jsonbinId&&state.jsonbinKey){cloudPull().then(()=>startPolling());}">
+            <input type="password" id="setting-binkey" placeholder="$2a$10$..." oninput="state.jsonbinKey=this.value.replace(/\s/g,'');save();updateSyncButtonVisibility();if(state.jsonbinId&&state.jsonbinKey){cloudPull().then(()=>startPolling());}">
           </div>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;align-items:center">
@@ -4910,10 +4910,12 @@ async function syncNow(btn) {
   const icon = btn?.querySelector('i');
   if (icon) icon.classList.add('fa-spin');
   if (btn) btn.disabled = true;
-  setSyncStatus('☁ Syncing…', 'var(--smoke)');
   try {
-    await cloudPull(true);
-    await cloudPush();
+    // non-silent: on failure this sets its own specific status (auth error,
+    // pull failed (status), or the real thrown-error message) instead of us
+    // guessing. Only proceed to push if that pull actually succeeded.
+    await cloudPull(false);
+    if (_cloudSyncReady) await cloudPush();
   } finally {
     if (icon) icon.classList.remove('fa-spin');
     if (btn) btn.disabled = false;
@@ -4983,7 +4985,7 @@ async function cloudPoll() {
       }
     }
     showLastSynced();
-  } catch(e) {} // silent poll failures
+  } catch(e) { console.error('[cloudPoll]', e); } // no UI noise, but still logged
 }
 
 function renderAll() {
@@ -5057,7 +5059,12 @@ async function cloudPush() {
       setSyncStatus(`☁ Sync error (${resp.status})`, 'var(--warning)');
     }
   } catch(e) {
-    setSyncStatus('☁ Offline — saved locally', 'var(--smoke)');
+    console.error('[cloudPush]', e);
+    // A thrown fetch error isn't necessarily "offline" — an invalid Bin ID/Master
+    // Key (bad characters from a copy-paste) makes the browser reject the request
+    // before it ever reaches the network, throwing the same way a real network
+    // failure would. Surface the real message so this is diagnosable without devtools.
+    setSyncStatus('☁ Sync failed — ' + (e?.message || 'offline') + ' (check Bin ID/Key)', 'var(--warning)');
     setTimeout(() => cloudPush(), 30000);
   }
 }
@@ -5092,7 +5099,8 @@ async function cloudPull(silent=false) {
       setTimeout(showLastSynced, 3000);
     }
   } catch(e) {
-    if (!silent) setSyncStatus('☁ Pull failed — check connection', 'var(--warning)');
+    console.error('[cloudPull]', e);
+    if (!silent) setSyncStatus('☁ Pull failed — ' + (e?.message || 'check connection'), 'var(--warning)');
   }
 }
 

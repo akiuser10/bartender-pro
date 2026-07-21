@@ -749,11 +749,11 @@
         <div class="form-row">
           <div class="input-group">
             <label class="input-label">JSONBin Bin ID</label>
-            <input type="text" id="setting-binid" placeholder="e.g. 64a3b2c1d0e9f8a7..." oninput="state.jsonbinId=this.value.trim();save();updateSyncButtonVisibility();if(state.jsonbinId&&state.jsonbinKey){cloudPull().then(()=>startPolling());}">
+            <input type="text" id="setting-binid" placeholder="e.g. 64a3b2c1d0e9f8a7..." oninput="state.jsonbinId=this.value.replace(/\s/g,'');save();updateSyncButtonVisibility();if(state.jsonbinId&&state.jsonbinKey){cloudPull().then(()=>startPolling());}">
           </div>
           <div class="input-group">
             <label class="input-label">Master Key (keep secret)</label>
-            <input type="password" id="setting-binkey" placeholder="$2a$10$..." oninput="state.jsonbinKey=this.value.trim();save();updateSyncButtonVisibility();if(state.jsonbinId&&state.jsonbinKey){cloudPull().then(()=>startPolling());}">
+            <input type="password" id="setting-binkey" placeholder="$2a$10$..." oninput="state.jsonbinKey=this.value.replace(/\s/g,'');save();updateSyncButtonVisibility();if(state.jsonbinId&&state.jsonbinKey){cloudPull().then(()=>startPolling());}">
           </div>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;align-items:center">
