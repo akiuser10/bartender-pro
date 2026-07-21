@@ -321,7 +321,18 @@ function openRecipeModal(recipeId=null) {
   state.editRecId = recipeId;
   const r = recipeId ? state.recipes.find(x=>x.id===recipeId) : null;
   const _rmt=document.getElementById('rec-modal-title'); if(_rmt) _rmt.textContent=recipeId?'Edit Recipe':'New Recipe';
-  const _rsv = (elId, v) => { const el=document.getElementById(elId); if(el) el.value=v; };
+  const _rsv = (elId, v) => {
+    const el=document.getElementById(elId); if(!el) return;
+    // For a <select>, a legacy value that isn't one of the fixed options would
+    // otherwise silently deselect and get wiped out on next save — preserve it
+    // by adding it as an extra option instead.
+    if (el.tagName === 'SELECT' && v && ![...el.options].some(o => o.value === v)) {
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = v;
+      el.insertBefore(opt, el.firstChild);
+    }
+    el.value=v;
+  };
   _rsv('rec-name',     r?.name||'');
   _rsv('rec-type',     r?.type||'classic');
   _rsv('rec-price',    r?.price||'');

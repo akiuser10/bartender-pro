@@ -1595,7 +1595,14 @@ tr.ing-selected { background: rgba(201,168,76,0.05); }
       </div>
       <div class="input-group">
         <label class="input-label">Ice</label>
-        <input type="text" id="rec-ice" placeholder="e.g. Crushed">
+        <select id="rec-ice">
+          <option value="">— Select —</option>
+          <option value="Neat">Neat</option>
+          <option value="Crushed Ice">Crushed Ice</option>
+          <option value="Ice Cubes">Ice Cubes</option>
+          <option value="Ice Block">Ice Block</option>
+          <option value="Ice Ball">Ice Ball</option>
+        </select>
       </div>
     </div>
     <div class="input-group">
@@ -3781,7 +3788,18 @@ function openRecipeModal(recipeId=null) {
   state.editRecId = recipeId;
   const r = recipeId ? state.recipes.find(x=>x.id===recipeId) : null;
   const _rmt=document.getElementById('rec-modal-title'); if(_rmt) _rmt.textContent=recipeId?'Edit Recipe':'New Recipe';
-  const _rsv = (elId, v) => { const el=document.getElementById(elId); if(el) el.value=v; };
+  const _rsv = (elId, v) => {
+    const el=document.getElementById(elId); if(!el) return;
+    // For a <select>, a legacy value that isn't one of the fixed options would
+    // otherwise silently deselect and get wiped out on next save — preserve it
+    // by adding it as an extra option instead.
+    if (el.tagName === 'SELECT' && v && ![...el.options].some(o => o.value === v)) {
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = v;
+      el.insertBefore(opt, el.firstChild);
+    }
+    el.value=v;
+  };
   _rsv('rec-name',     r?.name||'');
   _rsv('rec-type',     r?.type||'classic');
   _rsv('rec-price',    r?.price||'');
