@@ -4786,6 +4786,28 @@ function loadMasterIngredients() {
 }
 
 // ═══════════════════════════════════════════════════════
+// CLOUD SYNC state — declared before INIT below, since load()/save() run
+// during init and reference these; a `let` referenced before its declaration
+// line runs throws (temporal dead zone), so this block must come first.
+// ═══════════════════════════════════════════════════════
+const SYNC_KEY = 'bartenderpro_sync';
+const POLL_INTERVAL_MS = 30000;  // check for remote changes every 30s
+let syncChannel    = null;
+let _syncDebounceTimer = null;
+let _pollTimer     = null;
+let _lastSyncTime  = 0;
+let _lastPushedAt  = 0; // timestamp of our last push, so we don't re-apply our own update
+const SYNC_MIN_INTERVAL_MS = 5000;
+
+// Stays false until an initial pull completes for the configured bin, so a
+// device can't push its local state over remote data it has never seen.
+let _cloudSyncReady = false;
+
+// Persisted "last synced" timestamp, shown when idle (i.e. no sync/push/pull in flight)
+let _lastSyncedAt = null;
+try { const s = localStorage.getItem('bartenderpro_last_synced'); if (s) _lastSyncedAt = parseInt(s, 10) || null; } catch(e) {}
+
+// ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
 load();
@@ -4809,22 +4831,6 @@ initCloudSync();
 // Free tier: 10k requests/month. Push is debounced to avoid rate limits.
 // Auto-poll pulls every 30s so all devices stay in sync.
 // ═══════════════════════════════════════════════════════
-const SYNC_KEY = 'bartenderpro_sync';
-const POLL_INTERVAL_MS = 30000;  // check for remote changes every 30s
-let syncChannel    = null;
-let _syncDebounceTimer = null;
-let _pollTimer     = null;
-let _lastSyncTime  = 0;
-let _lastPushedAt  = 0; // timestamp of our last push, so we don't re-apply our own update
-const SYNC_MIN_INTERVAL_MS = 5000;
-
-// Stays false until an initial pull completes for the configured bin, so a
-// device can't push its local state over remote data it has never seen.
-let _cloudSyncReady = false;
-
-// Persisted "last synced" timestamp, shown when idle (i.e. no sync/push/pull in flight)
-let _lastSyncedAt = null;
-try { const s = localStorage.getItem('bartenderpro_last_synced'); if (s) _lastSyncedAt = parseInt(s, 10) || null; } catch(e) {}
 
 function recordSynced() {
   _lastSyncedAt = Date.now();
