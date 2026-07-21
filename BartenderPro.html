@@ -8,6 +8,8 @@
 <meta name="apple-mobile-web-app-title" content="Bartender Pro">
 <meta name="theme-color" content="#0F0F1A">
 <title>Bartender Pro</title>
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -55,7 +57,9 @@ body {
 .header-brand {
   font-family: 'Playfair Display', serif;
   font-size: 18px; color: var(--gold); letter-spacing: 0.02em;
+  display: flex; align-items: center; gap: 8px;
 }
+.header-brand img { height: 30px; width: 30px; border-radius: 50%; object-fit: cover; }
 .header-right { display: flex; align-items: center; gap: 12px; }
 .currency-select {
   background: var(--surface); color: var(--ice); border: 1px solid var(--surface2);
@@ -586,7 +590,7 @@ tr.ing-selected { background: rgba(201,168,76,0.05); }
 
 <!-- HEADER -->
 <header id="app-header">
-  <div class="header-brand">🍸 Bartender Pro</div>
+  <div class="header-brand"><img src="assets/header-icon.png" alt=""> Bartender Pro</div>
   <div class="header-right">
     <span id="sync-toast" style="font-size:11px;color:var(--success);transition:opacity 0.5s;opacity:0"></span>
     <button id="sync-now-btn" class="btn btn-ghost" style="padding:4px 10px;font-size:11px;display:none" onclick="syncNow(this)" title="Sync Now"><i class="fa-solid fa-arrows-rotate"></i></button>
@@ -1307,11 +1311,11 @@ tr.ing-selected { background: rgba(201,168,76,0.05); }
         <div class="form-row">
           <div class="input-group">
             <label class="input-label">JSONBin Bin ID</label>
-            <input type="text" id="setting-binid" placeholder="e.g. 64a3b2c1d0e9f8a7..." oninput="state.jsonbinId=this.value.trim();save();updateSyncButtonVisibility();if(state.jsonbinId&&state.jsonbinKey){startPolling();}">
+            <input type="text" id="setting-binid" placeholder="e.g. 64a3b2c1d0e9f8a7..." oninput="state.jsonbinId=this.value.trim();save();updateSyncButtonVisibility();if(state.jsonbinId&&state.jsonbinKey){cloudPull().then(()=>startPolling());}">
           </div>
           <div class="input-group">
             <label class="input-label">Master Key (keep secret)</label>
-            <input type="password" id="setting-binkey" placeholder="$2a$10$..." oninput="state.jsonbinKey=this.value.trim();save();updateSyncButtonVisibility();if(state.jsonbinId&&state.jsonbinKey){startPolling();}">
+            <input type="password" id="setting-binkey" placeholder="$2a$10$..." oninput="state.jsonbinKey=this.value.trim();save();updateSyncButtonVisibility();if(state.jsonbinId&&state.jsonbinKey){cloudPull().then(()=>startPolling());}">
           </div>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;align-items:center">
@@ -1717,7 +1721,9 @@ function downloadFile(url, filename) {
 function save() {
   try { localStorage.setItem('barmanager_v1', JSON.stringify(state)); } catch(e){}
   try { syncChannel?.postMessage({ type:'STATE_UPDATE', state }); } catch(e) {}
-  if (state.jsonbinId && state.jsonbinKey) {
+  // _cloudSyncReady stays false until an initial pull completes, so a fresh
+  // device can't push its (empty) local state over real data still in the bin.
+  if (state.jsonbinId && state.jsonbinKey && _cloudSyncReady) {
     schedulePush();
     if (!_pollTimer) startPolling(); // ensure polling is running
   }
@@ -4808,6 +4814,10 @@ let _lastSyncTime  = 0;
 let _lastPushedAt  = 0; // timestamp of our last push, so we don't re-apply our own update
 const SYNC_MIN_INTERVAL_MS = 5000;
 
+// Stays false until an initial pull completes for the configured bin, so a
+// device can't push its local state over remote data it has never seen.
+let _cloudSyncReady = false;
+
 // Persisted "last synced" timestamp, shown when idle (i.e. no sync/push/pull in flight)
 let _lastSyncedAt = null;
 try { const s = localStorage.getItem('bartenderpro_last_synced'); if (s) _lastSyncedAt = parseInt(s, 10) || null; } catch(e) {}
@@ -4888,6 +4898,7 @@ async function cloudPoll() {
       headers: { 'X-Master-Key': state.jsonbinKey, 'X-Bin-Meta': 'false' }
     });
     if (!resp.ok) return; // silent on poll errors
+    _cloudSyncReady = true;
     const data = await resp.json();
     if (!data.record) return;
     const remote = data.record;
@@ -4923,7 +4934,7 @@ function broadcastState() {
 }
 
 function schedulePush() {
-  if (!state.jsonbinId || !state.jsonbinKey) return;
+  if (!state.jsonbinId || !state.jsonbinKey || !_cloudSyncReady) return;
   clearTimeout(_syncDebounceTimer);
   _syncDebounceTimer = setTimeout(() => cloudPush(), SYNC_MIN_INTERVAL_MS);
 }
@@ -4932,7 +4943,7 @@ function schedulePush() {
 function saveAndSync() {
   try { localStorage.setItem('barmanager_v1', JSON.stringify(state)); } catch(e){}
   try { syncChannel?.postMessage({ type:'STATE_UPDATE', state }); } catch(e) {}
-  if (state.jsonbinId && state.jsonbinKey) {
+  if (state.jsonbinId && state.jsonbinKey && _cloudSyncReady) {
     clearTimeout(_syncDebounceTimer);
     _lastSyncTime = 0;
     cloudPush();
@@ -4947,7 +4958,7 @@ function setSyncStatus(msg, color) {
 }
 
 async function cloudPush() {
-  if (!state.jsonbinId || !state.jsonbinKey) return;
+  if (!state.jsonbinId || !state.jsonbinKey || !_cloudSyncReady) return;
   const now = Date.now();
   if (now - _lastSyncTime < SYNC_MIN_INTERVAL_MS) {
     schedulePush(); return;
@@ -4965,7 +4976,7 @@ async function cloudPush() {
       headers: {
         'Content-Type': 'application/json',
         'X-Master-Key': state.jsonbinKey,
-        'X-Bin-Versioning': 'false',
+        'X-Bin-Versioning': 'true',
       },
       body: JSON.stringify(state),
     });
@@ -5002,6 +5013,7 @@ async function cloudPull(silent=false) {
       }
       return;
     }
+    _cloudSyncReady = true;
     const data = await resp.json();
     if (data.record) {
       const pulled = data.record;

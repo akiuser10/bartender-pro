@@ -19,7 +19,9 @@ function downloadFile(url, filename) {
 function save() {
   try { localStorage.setItem('barmanager_v1', JSON.stringify(state)); } catch(e){}
   try { syncChannel?.postMessage({ type:'STATE_UPDATE', state }); } catch(e) {}
-  if (state.jsonbinId && state.jsonbinKey) {
+  // _cloudSyncReady stays false until an initial pull completes, so a fresh
+  // device can't push its (empty) local state over real data still in the bin.
+  if (state.jsonbinId && state.jsonbinKey && _cloudSyncReady) {
     schedulePush();
     if (!_pollTimer) startPolling(); // ensure polling is running
   }

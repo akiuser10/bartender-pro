@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bartender Pro</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <link rel="stylesheet" href="css/styles.css">
   <!-- Font Awesome & Google Fonts (CDN — same as original) -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -22,7 +24,7 @@
 
 <!-- HEADER -->
 <header id="app-header">
-  <div class="header-brand">🍸 Bartender Pro</div>
+  <div class="header-brand"><img src="assets/header-icon.png" alt=""> Bartender Pro</div>
   <div class="header-right">
     <span id="sync-toast" style="font-size:11px;color:var(--success);transition:opacity 0.5s;opacity:0"></span>
     <button id="sync-now-btn" class="btn btn-ghost" style="padding:4px 10px;font-size:11px;display:none" onclick="syncNow(this)" title="Sync Now"><i class="fa-solid fa-arrows-rotate"></i></button>
@@ -743,11 +745,11 @@
         <div class="form-row">
           <div class="input-group">
             <label class="input-label">JSONBin Bin ID</label>
-            <input type="text" id="setting-binid" placeholder="e.g. 64a3b2c1d0e9f8a7..." oninput="state.jsonbinId=this.value.trim();save();updateSyncButtonVisibility();if(state.jsonbinId&&state.jsonbinKey){startPolling();}">
+            <input type="text" id="setting-binid" placeholder="e.g. 64a3b2c1d0e9f8a7..." oninput="state.jsonbinId=this.value.trim();save();updateSyncButtonVisibility();if(state.jsonbinId&&state.jsonbinKey){cloudPull().then(()=>startPolling());}">
           </div>
           <div class="input-group">
             <label class="input-label">Master Key (keep secret)</label>
-            <input type="password" id="setting-binkey" placeholder="$2a$10$..." oninput="state.jsonbinKey=this.value.trim();save();updateSyncButtonVisibility();if(state.jsonbinId&&state.jsonbinKey){startPolling();}">
+            <input type="password" id="setting-binkey" placeholder="$2a$10$..." oninput="state.jsonbinKey=this.value.trim();save();updateSyncButtonVisibility();if(state.jsonbinId&&state.jsonbinKey){cloudPull().then(()=>startPolling());}">
           </div>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;align-items:center">

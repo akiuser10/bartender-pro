@@ -35,6 +35,10 @@ let _lastSyncTime  = 0;
 let _lastPushedAt  = 0; // timestamp of our last push, so we don't re-apply our own update
 const SYNC_MIN_INTERVAL_MS = 5000;
 
+// Stays false until an initial pull completes for the configured bin, so a
+// device can't push its local state over remote data it has never seen.
+let _cloudSyncReady = false;
+
 // Persisted "last synced" timestamp, shown when idle (i.e. no sync/push/pull in flight)
 let _lastSyncedAt = null;
 try { const s = localStorage.getItem('bartenderpro_last_synced'); if (s) _lastSyncedAt = parseInt(s, 10) || null; } catch(e) {}
@@ -115,6 +119,7 @@ async function cloudPoll() {
       headers: { 'X-Master-Key': state.jsonbinKey, 'X-Bin-Meta': 'false' }
     });
     if (!resp.ok) return; // silent on poll errors
+    _cloudSyncReady = true;
     const data = await resp.json();
     if (!data.record) return;
     const remote = data.record;
@@ -150,7 +155,7 @@ function broadcastState() {
 }
 
 function schedulePush() {
-  if (!state.jsonbinId || !state.jsonbinKey) return;
+  if (!state.jsonbinId || !state.jsonbinKey || !_cloudSyncReady) return;
   clearTimeout(_syncDebounceTimer);
   _syncDebounceTimer = setTimeout(() => cloudPush(), SYNC_MIN_INTERVAL_MS);
 }
@@ -159,7 +164,7 @@ function schedulePush() {
 function saveAndSync() {
   try { localStorage.setItem('barmanager_v1', JSON.stringify(state)); } catch(e){}
   try { syncChannel?.postMessage({ type:'STATE_UPDATE', state }); } catch(e) {}
-  if (state.jsonbinId && state.jsonbinKey) {
+  if (state.jsonbinId && state.jsonbinKey && _cloudSyncReady) {
     clearTimeout(_syncDebounceTimer);
     _lastSyncTime = 0;
     cloudPush();
@@ -174,7 +179,7 @@ function setSyncStatus(msg, color) {
 }
 
 async function cloudPush() {
-  if (!state.jsonbinId || !state.jsonbinKey) return;
+  if (!state.jsonbinId || !state.jsonbinKey || !_cloudSyncReady) return;
   const now = Date.now();
   if (now - _lastSyncTime < SYNC_MIN_INTERVAL_MS) {
     schedulePush(); return;
@@ -192,7 +197,7 @@ async function cloudPush() {
       headers: {
         'Content-Type': 'application/json',
         'X-Master-Key': state.jsonbinKey,
-        'X-Bin-Versioning': 'false',
+        'X-Bin-Versioning': 'true',
       },
       body: JSON.stringify(state),
     });
@@ -229,6 +234,7 @@ async function cloudPull(silent=false) {
       }
       return;
     }
+    _cloudSyncReady = true;
     const data = await resp.json();
     if (data.record) {
       const pulled = data.record;
