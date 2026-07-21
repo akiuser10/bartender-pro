@@ -2773,8 +2773,11 @@ function renderInventory() {
       const invUnit    = ing.cat === 'beer_keg' ? 'keg' : isAnyLiq ? 'btl' : isNos ? 'nos' : 'g';
       const unitMl     = isAnyLiq ? ing.unitSize : (ing.unitSize / (ing.density||1));
       const totalMl = calcTotalMl(ing, entry);
-      const minMl   = (ing.minPar||0) * unitMl;
-      const maxMl   = (ing.maxPar||0) * unitMl;
+      // Par thresholds: liquid par is a bottle count (× ml/bottle); food par is
+      // already entered directly in grams/nos, so don't scale it by package size.
+      const parUnitMl = isAnyLiq ? unitMl : 1;
+      const minMl   = (ing.minPar||0) * parUnitMl;
+      const maxMl   = (ing.maxPar||0) * parUnitMl;
       const pctFill = maxMl > 0 ? Math.min(100, (totalMl/maxMl)*100) : 0;
       const isLow   = totalMl < minMl;
       const openBtls  = entry.openBtls||1;
