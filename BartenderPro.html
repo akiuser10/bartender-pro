@@ -4851,6 +4851,59 @@ function updateSyncButtonVisibility() {
   if (btn) btn.style.display = show ? 'inline-flex' : 'none';
 }
 
+// JSONBin's free tier caps payloads at 100KB. state.ingredients alone runs
+// ~140KB because it's the full 600+ item master catalog, baked into every
+// device's copy of the app already — no need to push it wholesale. Instead
+// we push only ingredients that differ from their fresh-loaded master
+// default (e.g. inInventory toggled on, cost edited) plus any fully custom
+// ingredient a user added that isn't in the master list at all.
+function ingredientDiffersFromMaster(ing, master) {
+  const keys = new Set([...Object.keys(ing), ...Object.keys(master)]);
+  for (const k of keys) {
+    if (JSON.stringify(ing[k]) !== JSON.stringify(master[k])) return true;
+  }
+  return false;
+}
+
+function buildSyncPayload() {
+  const masterById = {};
+  MASTER_LIST_DATA.forEach(d => { masterById[d.id] = d; });
+  const ingredientOverrides = {};
+  const customIngredients = [];
+  (state.ingredients || []).forEach(ing => {
+    const master = masterById[ing.id];
+    if (!master) { customIngredients.push(ing); return; }
+    const defaultRecord = { ...master, inInventory: false };
+    if (ingredientDiffersFromMaster(ing, defaultRecord)) ingredientOverrides[ing.id] = ing;
+  });
+
+  const payload = { ...state };
+  delete payload.ingredients;
+  payload.ingredientOverrides = ingredientOverrides;
+  payload.customIngredients = customIngredients;
+  return payload;
+}
+
+// Reapply the lightweight ingredient sync fields onto the local (already
+// master-loaded) ingredients array after a pull/poll.
+function applyIngredientSync(pulled) {
+  if (!pulled.ingredientOverrides && !pulled.customIngredients) return;
+  const overrides = pulled.ingredientOverrides || {};
+  const customs = pulled.customIngredients || [];
+  if (!state.ingredients) state.ingredients = [];
+  state.ingredients.forEach((ing, idx) => {
+    if (overrides[ing.id]) state.ingredients[idx] = overrides[ing.id];
+  });
+  const existingIds = new Set(state.ingredients.map(i => i.id));
+  customs.forEach(c => {
+    if (existingIds.has(c.id)) {
+      state.ingredients[state.ingredients.findIndex(i => i.id === c.id)] = c;
+    } else {
+      state.ingredients.push(c);
+    }
+  });
+}
+
 // Manual "Sync Now" — pulls any remote changes, then pushes current state
 async function syncNow(btn) {
   if (!state.jsonbinId || !state.jsonbinKey) { toast('Add JSONBin Bin ID + Master Key in Settings first'); return; }
@@ -4919,6 +4972,7 @@ async function cloudPoll() {
       // Remote has changes we don't have — apply them
       const before = JSON.stringify(state);
       Object.assign(state, remote);
+      applyIngredientSync(remote);
       try { localStorage.setItem('barmanager_v1', JSON.stringify(state)); } catch(e) {}
       if (JSON.stringify(state) !== before) {
         renderAll();
@@ -4988,7 +5042,7 @@ async function cloudPush() {
         'X-Master-Key': state.jsonbinKey,
         'X-Bin-Versioning': 'true',
       },
-      body: JSON.stringify(state),
+      body: JSON.stringify(buildSyncPayload()),
     });
     if (resp.ok) {
       recordSynced();
@@ -5029,6 +5083,7 @@ async function cloudPull(silent=false) {
       const pulled = data.record;
       _lastPushedAt = pulled._updatedAt || 0;
       Object.assign(state, pulled);
+      applyIngredientSync(pulled);
       try { localStorage.setItem('barmanager_v1', JSON.stringify(state)); } catch(e) {}
       renderAll();
       recordSynced();
