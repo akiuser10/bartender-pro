@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bartender Pro</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <!-- Font Awesome & Google Fonts (CDN — same as original) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<!-- ═══════════════════════════════════════════════════════════════
+     NOTE: This index.html is the REFERENCE / REVIEW version.
+     The production file is BartenderPro.html (single self-contained file).
+     The JS here is split across js/01_state.js … js/15_batch.js for readability.
+     To run, open BartenderPro.html directly in your browser.
+     ═══════════════════════════════════════════════════════════════ -->
+
+</head>
+<body>
+
+<!-- HEADER -->
+<header id="app-header">
+  <div class="header-brand">🍸 Bartender Pro</div>
+  <div class="header-right">
+    <span id="sync-toast" style="font-size:11px;color:var(--success);transition:opacity 0.5s;opacity:0"></span>
+    <span id="sync-status" style="font-size:11px;color:var(--smoke)"></span>
+    <span class="bar-name-display" id="header-bar-name">My Bar</span>
+    <span id="currency-display" style="font-size:12px;color:var(--gold);font-weight:600;padding:4px 8px;background:rgba(201,168,76,0.1);border-radius:var(--radius-sm);border:1px solid rgba(201,168,76,0.2);cursor:pointer" onclick="showScreen('settings',document.querySelector('[onclick*=settings]'))"></span>
+  </div>
+</header>
+
+<!-- BODY -->
+<div id="app-body">
+
+  <!-- SIDEBAR -->
+  <nav id="sidebar">
+    <div class="nav-section-label">Overview</div>
+    <div class="nav-item active" onclick="showScreen('dashboard',this)">
+      <i class="fa-solid fa-gauge-high"></i> Dashboard
+    </div>
+    <div class="nav-section-label">Management</div>
+    <div class="nav-item" onclick="showScreen('ingredients',this)">
+      <i class="fa-solid fa-flask"></i> Ingredients
+    </div>
+    <div class="nav-item" onclick="showScreen('inventory',this)">
+      <i class="fa-solid fa-scale-balanced"></i> Inventory
+      <span class="nav-badge" id="low-badge" style="display:none">0</span>
+    </div>
+    <div class="nav-item" onclick="showScreen('stockinhand',this)">
+      <i class="fa-solid fa-warehouse"></i> Stock in Hand
+    </div>
+    <div class="nav-item" onclick="showScreen('orders',this)">
+      <i class="fa-solid fa-cart-shopping"></i> Order List
+      <span class="nav-badge" id="order-badge" style="display:none">0</span>
+    </div>
+    <div class="nav-item" onclick="showScreen('received',this)">
+      <i class="fa-solid fa-boxes-stacked"></i> Received
+      <span class="nav-badge" id="recv-badge" style="display:none">0</span>
+    </div>
+    <div class="nav-item" onclick="showScreen('wastage',this)">
+      <i class="fa-solid fa-trash-can"></i> Wastage
+    </div>
+    <div class="nav-item" onclick="showScreen('recipes',this)">
+      <i class="fa-solid fa-book-open"></i> Recipes
+    </div>
+    <div class="nav-item" onclick="showScreen('batch',this)">
+      <i class="fa-solid fa-flask-vial"></i> Batching
+    </div>
+    <div class="nav-item" onclick="showScreen('homemade',this)">
+      <i class="fa-solid fa-mortar-pestle"></i> Home-Made
+    </div>
+    <div class="nav-section-label">AI</div>
+    <div class="nav-item" onclick="showScreen('ai',this)">
+      <i class="fa-solid fa-wand-magic-sparkles"></i> AI Creator
+    </div>
+    <div class="nav-section-label">System</div>
+    <div class="nav-item" onclick="showScreen('suppliers',this)">
+      <i class="fa-solid fa-truck"></i> Suppliers
+    </div>
+    <div class="nav-item" onclick="showScreen('settings',this)">
+      <i class="fa-solid fa-sliders"></i> Settings
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main id="main">
+
+    <!-- ── DASHBOARD ─────────────────────────────────── -->
+    <div id="screen-dashboard" class="screen active">
+      <div class="screen-title">Dashboard</div>
+      <div class="screen-sub">Overview of your bar's current status</div>
+      <div class="kpi-grid" id="kpi-grid"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="dash-lower-grid">
+        <div>
+          <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--smoke);margin-bottom:10px;">Low Stock Alerts</div>
+          <div id="low-stock-list" class="alert-list"></div>
+          <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--warning);margin-bottom:10px;margin-top:16px">
+            <i class="fa-solid fa-clipboard-check"></i> Received — Awaiting Recount
+          </div>
+          <div id="recount-list" class="alert-list"></div>
+          <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--warning);margin-bottom:10px;margin-top:16px">Low Home-Made &amp; Batch</div>
+          <div id="low-hm-list" class="alert-list"></div>
+          <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--danger);margin-bottom:10px;margin-top:16px">
+            <i class="fa-solid fa-ban"></i> Not Available Items
+          </div>
+          <div id="unavailable-list" class="alert-list"></div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--smoke);margin-bottom:10px;">Quick Actions</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <button class="btn btn-gold" onclick="showScreen('inventory',document.querySelector('[onclick*=inventory]'))"><i class="fa-solid fa-scale-balanced"></i> Take Inventory</button>
+            <button class="btn btn-ghost" onclick="showScreen('recipes',document.querySelector('[onclick*=recipes]'));openRecipeModal()"><i class="fa-solid fa-plus"></i> New Recipe</button>
+            <button class="btn btn-ghost" onclick="showScreen('ai',document.querySelector('[onclick*=ai]'))"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Create Recipe</button>
+            <button class="btn btn-ghost" onclick="showScreen('ingredients',document.querySelector('[onclick*=ingredients]'));openIngModal()"><i class="fa-solid fa-plus"></i> Add Ingredient</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── INGREDIENTS ────────────────────────────────── -->
+    <div id="screen-ingredients" class="screen">
+      <div class="screen-title">Ingredient Master List</div>
+      <div class="screen-sub">All ingredients with cost, density and ABV. Changes here update all recipes live.</div>
+      <div class="toolbar">
+        <div class="search-wrap">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" placeholder="Search ingredients..." id="ing-search" oninput="renderIngredients()">
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--smoke);cursor:pointer;white-space:nowrap;background:var(--surface);padding:7px 12px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.08)">
+          <input type="checkbox" id="ing-show-inv-only" onchange="renderIngredients()" style="accent-color:var(--gold);width:14px;height:14px;cursor:pointer">
+          Inventory items only
+        </label>
+        <button class="btn btn-ghost" onclick="document.getElementById('ing-xlsx-upload').click()">
+          <i class="fa-solid fa-file-excel"></i> Bulk Update Excel
+        </button>
+        <input type="file" id="ing-xlsx-upload" accept=".xlsx,.xls" style="display:none" onchange="bulkUpdateFromExcel(this)">
+        <button class="btn btn-gold" onclick="openIngModal()"><i class="fa-solid fa-plus"></i> Add Ingredient</button>
+      </div>
+
+      <!-- Bulk action bar — shown when rows are selected -->
+      <div id="ing-bulk-bar" style="display:none;align-items:center;gap:10px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:var(--radius-sm);padding:8px 14px;margin-bottom:12px;flex-wrap:wrap">
+        <span id="ing-bulk-count" style="font-size:13px;font-weight:600;color:var(--gold)">0 selected</span>
+        <button class="btn btn-ghost btn-sm" onclick="bulkToggleInventory(true)"><i class="fa-solid fa-check-circle"></i> Mark as Inventory</button>
+        <button class="btn btn-ghost btn-sm" onclick="bulkToggleInventory(false)"><i class="fa-solid fa-circle-xmark"></i> Remove from Inventory</button>
+        <button class="btn btn-danger-ghost btn-sm" onclick="bulkDeleteIngredients()"><i class="fa-solid fa-trash"></i> Delete Selected</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearIngSelection()"><i class="fa-solid fa-xmark"></i> Clear selection</button>
+      </div>
+
+      <div class="filter-chips" style="margin-bottom:14px;" id="ing-chips"></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th style="width:32px"><input type="checkbox" id="ing-select-all" onchange="toggleSelectAllIngs(this.checked)" style="accent-color:var(--gold);width:15px;height:15px;cursor:pointer"></th>
+            <th style="width:32px;text-align:center" title="Track in Inventory tab">
+              <span style="font-size:10px;color:var(--success);font-weight:600">INV</span>
+            </th>
+            <th style="width:32px;text-align:center" title="Mark as not available / out of stock">
+              <span style="font-size:10px;color:var(--danger);font-weight:600">N/A</span>
+            </th>
+            <th>Description</th><th>Supplier</th><th>Category</th><th>Unit Size</th>
+            <th>ABV %</th><th>Tare (g)</th><th>Cost / Unit</th><th>Cost / ml or g</th><th></th>
+          </tr></thead>
+          <tbody id="ing-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── INVENTORY ──────────────────────────────────── -->
+    <div id="screen-inventory" class="screen">
+      <div class="screen-title">Inventory</div>
+      <div class="screen-sub">Enter stock weight in grams — ml conversion shows automatically</div>
+      <div class="toolbar">
+        <div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid rgba(201,168,76,0.25);border-radius:var(--radius-sm);padding:6px 12px;">
+          <i class="fa-solid fa-user" style="color:var(--gold);font-size:13px"></i>
+          <input type="text" id="inv-username" placeholder="Your name (e.g. Ahmed)" style="background:none;border:none;color:var(--ice);font-size:13px;outline:none;width:160px;" oninput="saveSettings()">
+        </div>
+        <div class="filter-chips" id="inv-chips"></div>
+        <button class="btn btn-gold" onclick="saveInventory()"><i class="fa-solid fa-floppy-disk"></i> Save Session</button>
+      </div>
+      <div class="table-wrap">
+        <div id="inv-list"></div>
+      </div>
+
+      <!-- Home-Made Inventory -->
+      <div id="hm-inv-section" style="margin-top:20px">
+        <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--warning);margin-bottom:12px">
+          <i class="fa-solid fa-mortar-pestle"></i> Home-Made &amp; Batch Inventory
+        </div>
+        <div id="hm-inv-list"></div>
+      </div>
+    </div>
+
+    <!-- ── STOCK IN HAND ──────────────────────────────── -->
+    <div id="screen-stockinhand" class="screen">
+      <div class="screen-title">Stock in Hand</div>
+      <div class="screen-sub">Current inventory value plus purchases already ordered but not yet received</div>
+      <div class="order-summary-bar" id="sih-summary-bar"></div>
+      <div class="toolbar">
+        <div class="search-wrap">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" placeholder="Search ingredients..." id="sih-search" oninput="renderStockInHand()">
+        </div>
+        <div class="filter-chips" id="sih-chips"></div>
+      </div>
+      <div class="table-wrap">
+        <div id="sih-list"></div>
+      </div>
+    </div>
+
+    <!-- ── ORDER LIST ─────────────────────────────────── -->
+    <div id="screen-orders" class="screen">
+      <div class="screen-title">Order List</div>
+      <div class="screen-sub">Items below minimum par, grouped by supplier. Select items and set an order reason before placing.</div>
+      <div class="order-summary-bar" id="order-summary-bar"></div>
+      <div class="toolbar">
+        <div style="display:flex;align-items:center;gap:8px">
+          <label style="font-size:12px;color:var(--smoke)">Order Reason:</label>
+          <select id="order-reason" style="background:var(--surface2);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:6px 10px;color:var(--ice);font-size:12px;font-family:'Inter',sans-serif;outline:none">
+            <option value="routine">Routine Restock</option>
+            <option value="fast_moving">Fast Moving Item</option>
+            <option value="upcoming_event">Upcoming Event</option>
+            <option value="seasonal">Seasonal Demand</option>
+            <option value="low_stock">Low Stock Alert</option>
+            <option value="new_listing">New Listing</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <button class="btn btn-gold" onclick="placeOrder()"><i class="fa-solid fa-paper-plane"></i> Place Order</button>
+        <button class="btn btn-ghost" onclick="emailOrderToSuppliers()"><i class="fa-solid fa-envelope"></i> Email Suppliers</button>
+        <button class="btn btn-ghost" onclick="exportOrder()"><i class="fa-solid fa-download"></i> Export CSV</button>
+        <button class="btn btn-ghost" onclick="renderOrders()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+      </div>
+      <div id="order-supplier-groups"></div>
+    </div>
+
+    <!-- ── RECEIVED ───────────────────────────────────── -->
+    <div id="screen-received" class="screen">
+      <div class="screen-title">Goods Received</div>
+      <div class="screen-sub">Enter quantities received and update delivery status. Follow up on missing or delayed items.</div>
+      <div class="order-summary-bar" id="recv-summary-bar"></div>
+      <div class="toolbar">
+        <div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid rgba(201,168,76,0.25);border-radius:var(--radius-sm);padding:6px 12px;">
+          <i class="fa-solid fa-user" style="color:var(--gold);font-size:13px"></i>
+          <input type="text" id="recv-username" placeholder="Received by (e.g. Maria)" style="background:none;border:none;color:var(--ice);font-size:13px;outline:none;width:160px;">
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:6px 12px;">
+          <i class="fa-solid fa-calendar" style="color:var(--smoke);font-size:13px"></i>
+          <input type="date" id="recv-date" style="background:none;border:none;color:var(--ice);font-size:13px;outline:none;">
+        </div>
+        <button class="btn btn-gold" onclick="saveReceived()"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+        <button class="btn btn-ghost" onclick="exportReceived()"><i class="fa-solid fa-download"></i> Export</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Item</th>
+            <th>Supplier</th>
+            <th>Ordered</th>
+            <th>Received</th>
+            <th>Difference</th>
+            <th>Status</th>
+            <th>Notes</th>
+          </tr></thead>
+          <tbody id="recv-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── WASTAGE ───────────────────────────────────── -->
+    <div id="screen-wastage" class="screen">
+      <div class="screen-title">Wastage Log</div>
+      <div class="screen-sub">Record all spillage, breakage, expired stock, and over-pouring. Every entry deducts from inventory.</div>
+
+      <!-- Quick entry form -->
+      <div style="background:var(--surface);border-radius:var(--radius);border:1px solid rgba(255,255,255,0.06);padding:20px;margin-bottom:18px">
+        <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--gold);margin-bottom:14px">Log New Wastage</div>
+        <div class="form-row">
+          <div class="input-group">
+            <label class="input-label">Ingredient</label>
+            <select id="waste-ing" style="width:100%" onchange="updateWasteUnit()">
+              <option value="">— Select ingredient —</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label class="input-label">Reason</label>
+            <select id="waste-reason" style="width:100%">
+              <option value="spillage">Spillage</option>
+              <option value="breakage">Breakage / Dropped</option>
+              <option value="expired">Expired</option>
+              <option value="overpour">Over-pouring</option>
+              <option value="trial">Trial / Testing</option>
+              <option value="comp">Complimentary</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row three">
+          <div class="input-group">
+            <label class="input-label">Quantity</label>
+            <input type="number" id="waste-qty" placeholder="e.g. 50" min="0" step="0.1">
+          </div>
+          <div class="input-group">
+            <label class="input-label">Unit</label>
+            <select id="waste-unit">
+              <option value="ml">ml</option>
+              <option value="g">g</option>
+              <option value="btl">Full bottle</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label class="input-label">Logged by</label>
+            <input type="text" id="waste-user" placeholder="Staff name">
+          </div>
+        </div>
+        <div class="input-group">
+          <label class="input-label">Notes (optional)</label>
+          <input type="text" id="waste-notes" placeholder="e.g. Bottle fell from shelf">
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:4px">
+          <button class="btn btn-gold" onclick="logWastage()"><i class="fa-solid fa-plus"></i> Log Wastage</button>
+          <div id="waste-cost-preview" style="font-size:13px;color:var(--smoke)"></div>
+        </div>
+      </div>
+
+      <!-- Summary bar -->
+      <div class="order-summary-bar" id="waste-summary-bar"></div>
+
+      <!-- Log table -->
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Date / Time</th><th>Ingredient</th><th>Qty</th>
+            <th>Reason</th><th>Cost Lost</th><th>Logged by</th><th>Notes</th><th></th>
+          </tr></thead>
+          <tbody id="waste-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── BATCHING ──────────────────────────────────── -->
+    <div id="screen-batch" class="screen">
+      <div class="screen-title">Batch Calculator</div>
+      <div class="screen-sub">Select a cocktail and target volume — generates scaled ingredient tables with dilution for spirits-only builds</div>
+      <div style="background:var(--surface);border-radius:var(--radius);border:1px solid rgba(201,168,76,0.2);padding:20px;margin-bottom:20px">
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px;align-items:flex-end">
+          <div class="input-group" style="margin-bottom:0">
+            <label class="input-label">Select Recipe</label>
+            <select id="btab-recipe" style="width:100%" onchange="renderBatchCalc()">
+              <option value="">— Choose a recipe —</option>
+            </select>
+          </div>
+          <div class="input-group" style="margin-bottom:0">
+            <label class="input-label">Target Quantity</label>
+            <input type="number" id="btab-qty" placeholder="e.g. 1000" min="1" style="width:100%" oninput="renderBatchCalc()">
+          </div>
+          <div class="input-group" style="margin-bottom:0">
+            <label class="input-label">Unit</label>
+            <select id="btab-unit" style="width:100%" onchange="renderBatchCalc()">
+              <option value="ml">ml total</option>
+              <option value="litres">Litres total</option>
+              <option value="portions">Portions</option>
+            </select>
+          </div>
+          <div class="input-group" style="margin-bottom:0">
+            <label class="input-label">Dilution % (spirits only)</label>
+            <input type="number" id="btab-dilution" value="20" min="0" max="40" step="1" style="width:100%" oninput="renderBatchCalc()">
+          </div>
+        </div>
+      </div>
+      <div id="btab-empty" style="padding:48px;text-align:center;color:var(--smoke);font-size:14px">
+        <i class="fa-solid fa-flask-vial" style="font-size:32px;display:block;margin-bottom:12px;color:var(--surface2)"></i>
+        Select a recipe and enter a target quantity to generate the batch sheet.
+      </div>
+      <div id="btab-result" style="display:none">
+        <div class="order-summary-bar" id="btab-summary"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+          <div>
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--gold);margin-bottom:8px"><i class="fa-solid fa-wine-bottle"></i> Alcohol &amp; Syrups</div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Ingredient</th><th>Category</th><th style="text-align:right">Qty</th><th style="text-align:right">Cost</th></tr></thead>
+                <tbody id="btab-alcohol-body"></tbody>
+                <tfoot id="btab-alcohol-foot"></tfoot>
+              </table>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--info);margin-bottom:8px"><i class="fa-solid fa-lemon"></i> Juices, Mixers &amp; Garnish</div>
+            <div id="btab-juice-wrap">
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Ingredient</th><th>Category</th><th style="text-align:right">Qty</th><th style="text-align:right">Cost</th></tr></thead>
+                  <tbody id="btab-juice-body"></tbody>
+                  <tfoot id="btab-juice-foot"></tfoot>
+                </table>
+              </div>
+            </div>
+            <div id="btab-juice-empty" style="display:none;font-size:12px;color:var(--smoke);padding:14px;background:var(--surface);border-radius:var(--radius);border:1px solid rgba(255,255,255,0.06)">No juice / mixer ingredients in this recipe.</div>
+          </div>
+        </div>
+        <div id="btab-dilution-row" style="display:none;background:rgba(91,155,213,0.08);border:1px solid rgba(91,155,213,0.25);border-radius:var(--radius);padding:14px 18px;margin-bottom:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <div>
+              <div style="font-size:13px;font-weight:600;color:var(--info)">💧 Dilution Water (ice melt)</div>
+              <div style="font-size:12px;color:var(--smoke);margin-top:2px">Spirits-only build — add water to account for ice melt during stirring/chilling</div>
+            </div>
+            <div style="font-size:22px;font-weight:700;color:var(--info);font-variant-numeric:tabular-nums" id="btab-dilution-val">—</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div style="font-size:14px;font-weight:600;color:var(--ice)">
+            Total batch cost: <span style="color:var(--gold)" id="btab-total-cost">—</span>
+            <span style="font-size:12px;color:var(--smoke);margin-left:14px" id="btab-cost-per-serve">—</span>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-gold" onclick="logBatch()"><i class="fa-solid fa-plus"></i> Log Batch</button>
+            <button class="btn btn-ghost" onclick="exportBatchCSV()"><i class="fa-solid fa-download"></i> Export CSV</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── BATCH HISTORY ── -->
+      <div id="batch-history-section" style="margin-top:28px">
+        <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--smoke);margin-bottom:12px">
+          <i class="fa-solid fa-clock-rotate-left"></i> Batch Log
+        </div>
+        <div id="batch-history-list"></div>
+      </div>
+    </div>
+
+    <!-- ── HOME-MADE ──────────────────────────────────── -->
+    <div id="screen-homemade" class="screen">
+      <div class="screen-title">Home-Made Ingredients</div>
+      <div class="screen-sub">House syrups, infused spirits, cordials, shrubs and sub-recipes. Each gets a unique HM-ID and is available in recipes and batch calculator.</div>
+      <div class="toolbar">
+        <div class="search-wrap">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="hm-search" placeholder="Search home-made items..." oninput="renderHomeMade()">
+        </div>
+        <button class="btn btn-gold" onclick="openHMModal()"><i class="fa-solid fa-plus"></i> New Item</button>
+      </div>
+      <div class="filter-chips" style="margin-bottom:14px" id="hm-chips"></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th style="width:36px;text-align:center" title="Track in Inventory tab">
+              <span style="font-size:10px;color:var(--success);font-weight:600">INV</span>
+            </th>
+            <th>HM-ID</th><th>Name</th><th>Type</th><th>Yield</th>
+            <th>Ingredients</th><th>Total Cost</th><th>Cost / unit</th><th></th>
+          </tr></thead>
+          <tbody id="hm-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- HOME-MADE MODAL -->
+    <div class="modal-overlay" id="hm-modal">
+      <div class="modal" style="max-width:640px">
+        <div class="modal-title" id="hm-modal-title">New Home-Made Item</div>
+        <div class="form-row">
+          <div class="input-group">
+            <label class="input-label">Name</label>
+            <input type="text" id="hm-name" placeholder="e.g. Raspberry Shrub, Lemongrass Syrup">
+          </div>
+          <div class="input-group">
+            <label class="input-label">Type</label>
+            <select id="hm-type">
+              <option value="syrup">Syrup</option>
+              <option value="infusion">Infused Spirit</option>
+              <option value="cordial">Cordial</option>
+              <option value="shrub">Shrub / Vinegar</option>
+              <option value="puree">Puree / Coulis</option>
+              <option value="bitters">House Bitters</option>
+              <option value="mix">Pre-mix / Batch</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row three">
+          <div class="input-group">
+            <label class="input-label">Yield Quantity</label>
+            <input type="number" id="hm-yield-qty" placeholder="e.g. 1000" min="0" oninput="calcHMCost()">
+          </div>
+          <div class="input-group">
+            <label class="input-label">Yield Unit</label>
+            <select id="hm-yield-unit" onchange="calcHMCost()">
+              <option value="ml">ml</option>
+              <option value="g">g</option>
+              <option value="nos">nos (units)</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label class="input-label">Density (g/ml)</label>
+            <input type="number" id="hm-density" placeholder="1.0" min="0.5" max="2" step="0.01" value="1.0">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="input-group">
+            <label class="input-label">Min Par (reorder alert)</label>
+            <input type="number" id="hm-min-par" placeholder="0" min="0" step="1">
+          </div>
+          <div class="input-group">
+            <label class="input-label">Track in Inventory?</label>
+            <select id="hm-track-inv">
+              <option value="1">Yes — show in inventory</option>
+              <option value="0">No</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="input-group">
+            <label class="input-label" style="display:flex;align-items:center;gap:6px">
+              <i class="fa-solid fa-weight-scale" style="color:var(--gold);font-size:11px"></i>
+              Empty Bottle / Container Weight (tare)
+            </label>
+            <input type="number" id="hm-tare" placeholder="e.g. 380" min="0" step="1">
+            <div class="input-hint" style="color:var(--smoke)">Weigh the empty bottle in grams. Used to calculate net liquid during inventory count.</div>
+          </div>
+        </div>
+        <div class="input-group">
+          <label class="input-label">Method / Notes</label>
+          <textarea id="hm-method" rows="2" placeholder="Preparation method, shelf life, storage..."></textarea>
+        </div>
+        <div style="margin-bottom:10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--smoke)">Ingredients used to make this batch</div>
+        <div id="hm-ing-rows"></div>
+        <button class="btn btn-ghost btn-sm" onclick="addHMIngRow()" style="margin-bottom:14px"><i class="fa-solid fa-plus"></i> Add ingredient</button>
+        <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:14px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+            <span style="color:var(--smoke);font-size:13px">Total ingredient cost</span>
+            <span style="font-weight:600;color:var(--gold)" id="hm-total-cost">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+            <span style="color:var(--smoke);font-size:13px">Cost per <span id="hm-unit-label">ml</span></span>
+            <span style="font-weight:600;color:var(--ice)" id="hm-unit-cost">—</span>
+          </div>
+          <div style="font-size:11px;color:var(--smoke)">This cost is used when this item appears in recipes and batch calculations.</div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="closeHMModal()">Cancel</button>
+          <button class="btn btn-gold" onclick="saveHMItem()"><i class="fa-solid fa-check"></i> Save</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="screen-recipes" class="screen">
+      <div id="recipe-list-view">
+        <div class="screen-title">Recipe Center</div>
+        <div class="screen-sub">All beverages with live cost calculation</div>
+        <div class="toolbar">
+          <div class="search-wrap">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" placeholder="Search recipes..." id="rec-search" oninput="renderRecipes()">
+          </div>
+          <button class="btn btn-ghost" onclick="exportRecipeBooklet()"><i class="fa-solid fa-book"></i> Export Booklet</button>
+          <button class="btn btn-gold" onclick="openRecipeModal()"><i class="fa-solid fa-plus"></i> New Recipe</button>
+        </div>
+        <div class="filter-chips" style="margin-bottom:16px;" id="rec-chips"></div>
+        <div class="recipe-grid" id="recipe-grid"></div>
+      </div>
+      <div id="recipe-detail-view" class="recipe-detail">
+        <div class="detail-header">
+          <button class="back-btn" onclick="closeRecipeDetail()"><i class="fa-solid fa-arrow-left"></i></button>
+          <div>
+            <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--ice)" id="detail-name"></div>
+            <div id="detail-type-badge"></div>
+          </div>
+          <div style="margin-left:auto;display:flex;gap:8px;">
+            <button class="btn btn-ghost btn-sm" onclick="editCurrentRecipe()"><i class="fa-solid fa-pen"></i> Edit</button>
+            <button class="btn btn-danger-ghost btn-sm" onclick="deleteCurrentRecipe()"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px" id="detail-kpis"></div>
+        <div style="margin-bottom:14px">
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--smoke);margin-bottom:8px;">Ingredients</div>
+          <div class="ing-table-wrap">
+            <table><thead><tr><th>Ingredient</th><th>Qty</th><th>Unit</th><th>Cost</th></tr></thead>
+            <tbody id="detail-ings"></tbody></table>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;" id="detail-method-grid"></div>
+
+      </div>
+    </div>
+
+    <!-- ── AI CREATOR ─────────────────────────────────── -->
+    <div id="screen-ai" class="screen">
+      <div class="screen-title">AI Recipe Creator</div>
+      <div class="screen-sub">Powered by Claude — describe what you want or generate from current inventory</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+        <div class="ai-panel">
+          <div class="ai-panel-title"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate from prompt</div>
+          <select style="margin-bottom:10px;" id="ai-type-select">
+            <option value="signature">Signature Cocktail</option>
+            <option value="classic">Classic Cocktail</option>
+            <option value="mocktail">Mocktail</option>
+            <option value="coffee">Coffee &amp; Tea</option>
+            <option value="beer">Beer &amp; Wine serve</option>
+            <option value="any">Any type</option>
+          </select>
+          <textarea class="ai-prompt" id="ai-prompt" placeholder="e.g. 'A tropical cocktail with rum and coconut for a beach vibe' or 'A warming coffee drink with cardamom and honey'"></textarea>
+          <button class="btn btn-gold" onclick="generateRecipe(false)" style="width:100%"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate Recipe</button>
+        </div>
+        <div class="ai-panel">
+          <div class="ai-panel-title"><i class="fa-solid fa-scale-balanced"></i> Generate from inventory</div>
+          <p style="font-size:13px;color:var(--smoke);margin-bottom:14px;line-height:1.6">Claude will look at your current stock and suggest recipes you can make right now — prioritising items near minimum par.</p>
+          <button class="btn btn-ghost" onclick="generateRecipe(true)" style="width:100%;margin-bottom:10px"><i class="fa-solid fa-scale-balanced"></i> Use My Inventory</button>
+          <p style="font-size:12px;color:var(--smoke)">Substitute an ingredient:</p>
+          <input type="text" id="sub-ingredient" placeholder="e.g. Aperol (out of stock)" style="margin-top:6px;margin-bottom:8px">
+          <button class="btn btn-ghost" onclick="substituteIngredient()" style="width:100%;font-size:12px"><i class="fa-solid fa-shuffle"></i> Find Substitutes</button>
+        </div>
+      </div>
+      <div id="ai-loading" class="ai-loading"><i class="fa-solid fa-circle-notch spin"></i> Claude is creating your recipe…</div>
+      <div id="ai-result" class="ai-result"></div>
+      <div id="ai-save-btn" style="display:none;margin-top:10px;">
+        <button class="btn btn-gold" onclick="saveAiRecipe()"><i class="fa-solid fa-bookmark"></i> Save to Recipe Center</button>
+        <button class="btn btn-ghost" onclick="generateRecipe(lastFromInventory)" style="margin-left:8px"><i class="fa-solid fa-rotate"></i> Regenerate</button>
+      </div>
+    </div>
+
+    <!-- ── SUPPLIERS ──────────────────────────────────── -->
+    <div id="screen-suppliers" class="screen">
+      <div class="screen-title">Suppliers &amp; Contacts</div>
+      <div class="screen-sub">Manage supplier details, banking &amp; payment terms</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
+        <button class="btn btn-gold btn-sm" onclick="showSupplierModal(null)">
+          <i class="fa-solid fa-plus"></i> New Supplier
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="importSuppliersFromMaster()">
+          <i class="fa-solid fa-file-import"></i> Import from Master List
+        </button>
+      </div>
+      <div id="suppliers-screen-list"></div>
+    </div>
+
+    <!-- ── SETTINGS ───────────────────────────────────── -->
+    <div id="screen-settings" class="screen">
+      <div class="screen-title">Settings</div>
+      <div class="screen-sub">Configure your bar, team and integrations</div>
+
+      <!-- Company Profile -->
+      <div class="settings-section">
+        <div class="settings-section-title"><i class="fa-solid fa-building" style="margin-right:6px"></i>Company Profile</div>
+        <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;margin-bottom:16px">
+          <div style="text-align:center">
+            <div id="company-logo-preview" style="width:80px;height:80px;border-radius:var(--radius-sm);background:var(--surface2);border:2px dashed rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden" onclick="document.getElementById('company-logo-upload').click()">
+              <span style="font-size:10px;color:var(--smoke);text-align:center" id="logo-placeholder"><i class="fa-solid fa-image" style="font-size:24px;display:block;margin-bottom:4px"></i>Upload Logo</span>
+            </div>
+            <input type="file" id="company-logo-upload" accept="image/*" style="display:none" onchange="uploadCompanyLogo(this)">
+            <div style="font-size:10px;color:var(--smoke);margin-top:4px">Click to upload</div>
+          </div>
+          <div style="flex:1;min-width:200px">
+            <div class="form-row">
+              <div class="input-group">
+                <label class="input-label">Company / Bar Name</label>
+                <input type="text" id="co-name" placeholder="e.g. Zuma Dubai" oninput="saveCompanyProfile()">
+              </div>
+              <div class="input-group">
+                <label class="input-label">Email</label>
+                <input type="email" id="co-email" placeholder="bar@example.com" oninput="saveCompanyProfile()">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="input-group">
+                <label class="input-label">Phone</label>
+                <input type="tel" id="co-phone" placeholder="+971 4 ..." oninput="saveCompanyProfile()">
+              </div>
+              <div class="input-group">
+                <label class="input-label">City</label>
+                <input type="text" id="co-city" placeholder="Dubai" oninput="saveCompanyProfile()">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="input-group">
+                <label class="input-label">Address</label>
+                <input type="text" id="co-address" placeholder="Street address" oninput="saveCompanyProfile()">
+              </div>
+              <div class="input-group">
+                <label class="input-label">Country</label>
+                <input type="text" id="co-country" placeholder="UAE" oninput="saveCompanyProfile()">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Team / Users -->
+      <div class="settings-section">
+        <div class="settings-section-title"><i class="fa-solid fa-users" style="margin-right:6px"></i>Team Members</div>
+        <div id="users-list" style="margin-bottom:12px"></div>
+        <button class="btn btn-ghost btn-sm" onclick="addUser()"><i class="fa-solid fa-plus"></i> Add Team Member</button>
+      </div>
+
+
+
+      <!-- Bar Details -->
+      <div class="settings-section">
+        <div class="settings-section-title">Bar Details</div>
+        <div class="form-row">
+          <div class="input-group">
+            <label class="input-label">Bar Name</label>
+            <input type="text" id="setting-bar-name" placeholder="e.g. Zuma Dubai" oninput="updateBarName()">
+          </div>
+          <div class="input-group">
+            <label class="input-label">Default Currency</label>
+            <select id="setting-currency" onchange="setCurrencyFromSettings(this.value)">
+              <option value="AED">AED — UAE Dirham</option>
+              <option value="USD">USD — US Dollar</option>
+              <option value="EUR">EUR — Euro</option>
+              <option value="GBP">GBP — British Pound</option>
+              <option value="SAR">SAR — Saudi Riyal</option>
+              <option value="QAR">QAR — Qatari Riyal</option>
+              <option value="INR">INR — Indian Rupee</option>
+              <option value="JPY">JPY — Japanese Yen</option>
+              <option value="CAD">CAD — Canadian Dollar</option>
+              <option value="AUD">AUD — Australian Dollar</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="input-group">
+            <label class="input-label">Target Cost % (for indicators)</label>
+            <input type="number" id="setting-target-cost" value="22" min="5" max="50" oninput="saveSettings()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Cloud Sync -->
+      <div class="settings-section">
+        <div class="settings-section-title"><i class="fa-solid fa-cloud" style="margin-right:6px"></i>Cloud Sync — Multi-Device</div>
+        <div class="sync-banner"><i class="fa-solid fa-circle-info"></i> Free cloud sync via JSONBin.io — works across Mac, iPad, iPhone. Auto-updates every 30 seconds on all devices.</div>
+        <p style="font-size:13px;color:var(--smoke);margin-bottom:14px;line-height:1.7">
+          <strong style="color:var(--ice)">One-time setup (2 min):</strong><br>
+          1. Go to <a href="https://jsonbin.io" target="_blank" style="color:var(--gold)">jsonbin.io</a> → Create free account → <strong>+ Create Bin</strong> → paste <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">{}</code> → Save<br>
+          2. Copy the <strong>Bin ID</strong> from the URL bar (the long string after <code style="background:var(--surface2);padding:2px 4px;border-radius:3px">/b/</code>)<br>
+          3. Go to Account → <strong>API Keys</strong> → copy your <strong>Master Key</strong><br>
+          4. Paste both below on <strong style="color:var(--gold)">every device</strong> using the same Bin ID + Key<br>
+          <span style="color:var(--success)">✓ After setup:</span> Place an order on iPad → MacBook sees it within 30 seconds automatically.
+        </p>
+        <div class="form-row">
+          <div class="input-group">
+            <label class="input-label">JSONBin Bin ID</label>
+            <input type="text" id="setting-binid" placeholder="e.g. 64a3b2c1d0e9f8a7..." oninput="state.jsonbinId=this.value.trim();save();if(state.jsonbinId&&state.jsonbinKey){startPolling();}">
+          </div>
+          <div class="input-group">
+            <label class="input-label">Master Key (keep secret)</label>
+            <input type="password" id="setting-binkey" placeholder="$2a$10$..." oninput="state.jsonbinKey=this.value.trim();save();if(state.jsonbinId&&state.jsonbinKey){startPolling();}">
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;align-items:center">
+          <button class="btn btn-gold" onclick="cloudPull()"><i class="fa-solid fa-cloud-arrow-down"></i> Pull from cloud</button>
+          <button class="btn btn-ghost" onclick="cloudPush().then(()=>toast('✓ Pushed to cloud'))"><i class="fa-solid fa-cloud-arrow-up"></i> Push to cloud</button>
+          <span id="sync-status-settings" style="font-size:12px;color:var(--smoke)">—</span>
+        </div>
+        <div style="font-size:11px;color:var(--smoke);margin-top:10px;display:flex;align-items:center;gap:8px">
+          <span id="poll-indicator" style="color:var(--success);font-size:14px">●</span>
+          <span>Auto-polling every 30s — all devices update automatically</span>
+        </div>
+      </div>
+
+      <!-- Claude AI API Key -->
+      <div class="settings-section">
+        <div class="settings-section-title">Claude AI — API Key</div>
+        <div class="input-group">
+          <label class="input-label">Anthropic API Key</label>
+          <input type="password" id="setting-api-key" placeholder="sk-ant-..." oninput="saveSettings()">
+          <div class="input-hint" style="color:var(--smoke);margin-top:4px;">Your key is stored locally on this device only. Never shared.</div>
+        </div>
+      </div>
+
+      <!-- Density Presets -->
+      <div class="settings-section">
+        <div class="settings-section-title">Density Presets (g/ml) — ABV auto-calculates for spirits</div>
+        <div id="density-presets-list"></div>
+      </div>
+
+      <!-- House Pour Substitution -->
+      <div class="settings-section">
+        <div class="settings-section-title"><i class="fa-solid fa-shuffle" style="margin-right:6px"></i>House Pour Substitution</div>
+        <p style="font-size:13px;color:var(--smoke);margin-bottom:14px;line-height:1.6">
+          Replace one ingredient with another across <strong style="color:var(--ice)">all recipes</strong> automatically.
+          Use when a house pour changes, a product is delisted, or you switch suppliers.
+        </p>
+        <div class="form-row" style="margin-bottom:12px">
+          <div class="input-group">
+            <label class="input-label"><i class="fa-solid fa-circle-xmark" style="color:var(--danger);margin-right:4px"></i>Replace (outgoing)</label>
+            <select id="pour-from" style="width:100%">
+              <option value="">— Select ingredient to replace —</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label class="input-label"><i class="fa-solid fa-circle-check" style="color:var(--success);margin-right:4px"></i>Replace with (incoming)</label>
+            <select id="pour-to" style="width:100%">
+              <option value="">— Select replacement ingredient —</option>
+            </select>
+          </div>
+        </div>
+        <div id="pour-preview" style="font-size:13px;color:var(--smoke);margin-bottom:12px;min-height:20px"></div>
+        <button class="btn btn-gold" onclick="applyHousePour()">
+          <i class="fa-solid fa-shuffle"></i> Apply substitution to all recipes
+        </button>
+        <div style="margin-top:16px;font-size:12px;color:var(--smoke)">
+          <strong style="color:var(--ice)">Recent substitutions:</strong>
+          <div id="pour-history" style="margin-top:6px"></div>
+        </div>
+      </div>
+
+      <!-- Data -->
+      <div class="settings-section">
+        <div class="settings-section-title">Data</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-ghost" onclick="exportData()"><i class="fa-solid fa-download"></i> Export JSON backup</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('import-file').click()"><i class="fa-solid fa-upload"></i> Import backup</button>
+          <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(this)">
+          <button class="btn btn-danger-ghost" onclick="if(confirm('Reset ALL data?'))resetData()"><i class="fa-solid fa-trash"></i> Reset all data</button>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<!-- MOBILE NAV -->
+<nav id="mobile-nav">
+  <div class="mobile-nav-items">
+    <button class="mobile-nav-item active" onclick="showScreen('dashboard',this)"><i class="fa-solid fa-gauge-high"></i>Home</button>
+    <button class="mobile-nav-item" onclick="showScreen('ingredients',this)"><i class="fa-solid fa-flask"></i>Ingredients</button>
+    <button class="mobile-nav-item" onclick="showScreen('inventory',this)"><i class="fa-solid fa-scale-balanced"></i>Inventory</button>
+    <button class="mobile-nav-item" onclick="showScreen('stockinhand',this)"><i class="fa-solid fa-warehouse"></i>Stock in Hand</button>
+    <button class="mobile-nav-item" onclick="showScreen('orders',this)"><i class="fa-solid fa-cart-shopping"></i>Orders</button>
+    <button class="mobile-nav-item" onclick="showScreen('received',this)"><i class="fa-solid fa-boxes-stacked"></i>Received</button>
+    <button class="mobile-nav-item" onclick="showScreen('wastage',this)"><i class="fa-solid fa-trash-can"></i>Wastage</button>
+    <button class="mobile-nav-item" onclick="showScreen('recipes',this)"><i class="fa-solid fa-book-open"></i>Recipes</button>
+    <button class="mobile-nav-item" onclick="showScreen('batch',this)"><i class="fa-solid fa-flask-vial"></i>Batch</button>
+    <button class="mobile-nav-item" onclick="showScreen('homemade',this)"><i class="fa-solid fa-mortar-pestle"></i>Home-Made</button>
+    <button class="mobile-nav-item" onclick="showScreen('ai',this)"><i class="fa-solid fa-wand-magic-sparkles"></i>AI</button>
+    <button class="mobile-nav-item" onclick="showScreen('suppliers',this)"><i class="fa-solid fa-truck"></i>Suppliers</button>
+    <button class="mobile-nav-item" onclick="showScreen('settings',this)"><i class="fa-solid fa-sliders"></i>Settings</button>
+  </div>
+</nav>
+
+<!-- INGREDIENT MODAL -->
+<div class="modal-overlay" id="ing-modal">
+  <div class="modal">
+    <div class="modal-title" id="ing-modal-title">Add Ingredient</div>
+    <div class="form-row">
+      <div class="input-group">
+        <label class="input-label">Supplier Code</label>
+        <input type="text" id="ing-tahweel" placeholder="e.g. BI101350">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Supplier</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select id="ing-supplier" style="flex:1;background:var(--surface2);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:8px 10px;color:var(--ice);font-size:13px">
+            <option value="">— Select supplier —</option>
+          </select>
+          <button type="button" class="btn btn-ghost btn-sm btn-icon" title="Add new supplier" onclick="openAddSupplierFromIngredient()" style="flex-shrink:0;padding:8px 10px">
+            <i class="fa-solid fa-plus"></i>
+          </button>
+        </div>
+        <div id="no-supplier-warning" style="display:none;font-size:11px;color:var(--warning);margin-top:4px">
+          <i class="fa-solid fa-triangle-exclamation" style="margin-right:3px"></i>
+          No suppliers found. <button type="button" onclick="openAddSupplierFromIngredient()" style="background:none;border:none;color:var(--gold);cursor:pointer;font-size:11px;text-decoration:underline;padding:0">Create a supplier first</button>
+        </div>
+      </div>
+    </div>
+    <div class="input-group">
+      <label class="input-label">Description</label>
+      <input type="text" id="ing-desc" placeholder="Full product name and size">
+    </div>
+    <div class="form-row three">
+      <div class="input-group">
+        <label class="input-label">Category</label>
+        <select id="ing-cat" onchange="updateUnitSizeLabel()">
+          <optgroup label="── Alcohol ──">
+            <option value="spirits">Spirits</option>
+            <option value="liqueur">Liqueur</option>
+            <option value="amaro">Amaro</option>
+            <option value="bitters">Bitters</option>
+          </optgroup>
+          <optgroup label="── Wine ──">
+            <option value="wine_red">Red Wine</option>
+            <option value="wine_white">White Wine</option>
+            <option value="wine_rose">Rosé Wine</option>
+            <option value="wine_sweet">Sweet Wine</option>
+            <option value="sparkling">Sparkling</option>
+            <option value="fortified_wine">Fortified Wine (Port/Sherry)</option>
+            <option value="aromatised_wine">Aromatised Wine (Vermouth)</option>
+            <option value="beer">Beer</option>
+          </optgroup>
+          <optgroup label="── Non-Alcohol ──">
+            <option value="juice_fresh">Fresh Juice</option>
+            <option value="juice_canned">Canned / Long-Life Juice</option>
+            <option value="soft_drink">Soft Drink</option>
+            <option value="water">Water</option>
+          </optgroup>
+          <optgroup label="── Produce ──">
+            <option value="fruit">Fruit</option>
+            <option value="citrus">Citrus</option>
+            <option value="berry">Berry</option>
+            <option value="vegetable">Vegetable</option>
+            <option value="herb">Herb</option>
+            <option value="spice">Spice</option>
+            <option value="dry_fruit">Dry Fruit</option>
+            <option value="nut">Nut</option>
+            <option value="seed">Seed</option>
+          </optgroup>
+          <optgroup label="── Pantry ──">
+            <option value="syrup">Syrup</option>
+            <option value="puree">Puree / Frozen</option>
+            <option value="milk">Milk / Cream</option>
+            <option value="coffee">Coffee &amp; Tea</option>
+            <option value="other">Other</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="input-group">
+        <label class="input-label" id="unit-size-label">Unit Size (ml for liquids / g for food)</label>
+        <input type="number" id="ing-unit-size" placeholder="e.g. 700" min="0" oninput="updateUnitSizeLabel()">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Unit Cost</label>
+        <input type="number" id="ing-cost" placeholder="e.g. 106.00" min="0" step="0.01">
+      </div>
+    </div>
+    <div class="form-row three">
+      <div class="input-group">
+        <label class="input-label">ABV %</label>
+        <input type="number" id="ing-abv" placeholder="0 if none" min="0" max="100" step="0.1" oninput="calcDensityFromABV()">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Density (g/ml)</label>
+        <input type="number" id="ing-density" placeholder="auto from ABV" min="0.5" max="2" step="0.001">
+        <div class="input-hint" id="density-hint"></div>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Brix ° (syrups)</label>
+        <input type="number" id="ing-brix" placeholder="optional" min="0" max="100" oninput="calcDensityFromBrix()">
+        <div class="input-hint" id="brix-hint"></div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="input-group">
+        <label class="input-label" style="display:flex;align-items:center;gap:6px">
+          <i class="fa-solid fa-weight-scale" style="color:var(--gold);font-size:11px"></i>
+          Empty Bottle Weight (tare)
+        </label>
+        <input type="number" id="ing-tare" placeholder="e.g. 380" min="0" step="1">
+        <div class="input-hint" style="color:var(--smoke)">Weigh the empty bottle in grams. Subtracted from gross weigh-in during inventory.</div>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Max Par (units)</label>
+        <input type="number" id="ing-max-par" placeholder="e.g. 6" min="0">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="input-group">
+        <label class="input-label">Min Par (units)</label>
+        <input type="number" id="ing-min-par" placeholder="e.g. 2" min="0">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeIngModal()">Cancel</button>
+      <button class="btn btn-gold" onclick="saveIngredient()"><i class="fa-solid fa-check"></i> Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- RECIPE MODAL -->
+<div class="modal-overlay" id="rec-modal">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-title" id="rec-modal-title">New Recipe</div>
+    <div class="form-row">
+      <div class="input-group">
+        <label class="input-label">Recipe Name</label>
+        <input type="text" id="rec-name" placeholder="e.g. Classic Mojito">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Type</label>
+        <select id="rec-type">
+          <option value="signature">Signature Cocktail</option>
+          <option value="classic">Classic Cocktail</option>
+          <option value="mocktail">Mocktail</option>
+          <option value="coffee">Coffee &amp; Tea</option>
+          <option value="beer">Beer &amp; Wine</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="input-group">
+        <label class="input-label">Selling Price <span style="color:var(--gold);font-size:10px">(incl. all taxes)</span></label>
+        <input type="number" id="rec-price" placeholder="e.g. 69" min="0" step="0.5" oninput="updateRecipeCostPreview()">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Glass</label>
+        <input type="text" id="rec-glass" placeholder="e.g. Highball">
+      </div>
+    </div>
+    <!-- Tax fields -->
+    <div class="form-row three" style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px;gap:10px">
+      <div class="input-group" style="margin-bottom:0">
+        <label class="input-label" style="color:var(--gold)">VAT %</label>
+        <input type="number" id="rec-vat" placeholder="e.g. 5" min="0" max="100" step="0.1" value="" oninput="updateRecipeCostPreview()">
+      </div>
+      <div class="input-group" style="margin-bottom:0">
+        <label class="input-label" style="color:var(--gold)">Other Tax %</label>
+        <input type="number" id="rec-othertax" placeholder="e.g. 0" min="0" max="100" step="0.1" value="" oninput="updateRecipeCostPreview()">
+      </div>
+      <div class="input-group" style="margin-bottom:0">
+        <label class="input-label" style="color:var(--gold)">Service Charge %</label>
+        <input type="number" id="rec-service" placeholder="e.g. 10" min="0" max="100" step="0.1" value="" oninput="updateRecipeCostPreview()">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="input-group">
+        <label class="input-label">Garnish</label>
+        <input type="text" id="rec-garnish" placeholder="e.g. Mint sprig + lime wedge">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Ice</label>
+        <input type="text" id="rec-ice" placeholder="e.g. Crushed">
+      </div>
+    </div>
+    <div class="input-group">
+      <label class="input-label">Method</label>
+      <textarea id="rec-method" rows="2" placeholder="Step by step preparation instructions"></textarea>
+    </div>
+    <div style="margin-bottom:10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--smoke)">Ingredients</div>
+    <div id="rec-ing-rows"></div>
+    <button class="btn btn-ghost btn-sm" onclick="addIngRow()" style="margin-bottom:14px"><i class="fa-solid fa-plus"></i> Add ingredient line</button>
+    <!-- Live cost + tax breakdown -->
+    <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:14px;font-size:13px;" id="rec-cost-preview">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <span style="color:var(--smoke)">Recipe cost</span>
+        <span style="color:var(--gold);font-weight:600" id="rec-cost-val">—</span>
+      </div>
+      <div id="rec-tax-lines"></div>
+      <div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06)">
+        <span style="color:var(--smoke)">Net price (ex-tax)</span>
+        <span style="font-weight:600;color:var(--ice)" id="rec-pretax-val">—</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px">
+        <span style="color:var(--gold);font-weight:600">Selling price (incl. tax)</span>
+        <span style="font-weight:700;font-size:15px;color:var(--gold)" id="rec-total-val">—</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06)">
+        <span style="color:var(--smoke)">Cost %</span>
+        <span style="font-weight:600" id="rec-pct-val">—</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px">
+        <span style="color:var(--smoke)">Gross Profit (on net price)</span>
+        <span style="font-weight:600;color:var(--success)" id="rec-gp-val">—</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeRecipeModal()">Cancel</button>
+      <button class="btn btn-gold" onclick="saveRecipe()"><i class="fa-solid fa-check"></i> Save Recipe</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+
+  <!-- JS modules (split for VS Code review — load order matters) -->
+  <script src="js/01_state.js"></script>
+  <script src="js/02_persistence.js"></script>
+  <script src="js/03_utils.js"></script>
+  <script src="js/04_navigation.js"></script>
+  <script src="js/05_dashboard.js"></script>
+  <script src="js/06_ingredients.js"></script>
+  <script src="js/07_orders.js"></script>
+  <script src="js/08_received.js"></script>
+  <script src="js/09_ai_creator.js"></script>
+  <script src="js/10_settings.js"></script>
+  <script src="js/11_sample_data.js"></script>
+  <script src="js/12_init.js"></script>
+  <script src="js/13_wastage.js"></script>
+  <script src="js/14_homemade.js"></script>
+  <script src="js/15_batch.js"></script>
+  <script src="js/16_stock_in_hand.js"></script>
+</body>
+</html>
