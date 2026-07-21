@@ -9,7 +9,7 @@ A comprehensive single-file Progressive Web App for professional bar management.
 | `BartenderPro.html` | **Production file** — open this in your browser. Self-contained. |
 | `index.html` | Reference/review version with external CSS & JS |
 | `css/styles.css` | All app styles (extracted from BartenderPro.html) |
-| `js/01_state.js` | State object, constants, master ingredient/recipe data |
+| `js/01_state.js` | State object, constants |
 | `js/02_persistence.js` | LocalStorage save/load, cloud sync (JSONBin.io) |
 | `js/03_utils.js` | Formatters, badges, category helpers, utility functions |
 | `js/04_navigation.js` | Screen navigation, currency switcher |
@@ -19,7 +19,7 @@ A comprehensive single-file Progressive Web App for professional bar management.
 | `js/08_received.js` | Goods received, delivery tracking |
 | `js/09_ai_creator.js` | AI-powered recipe creator (Claude API) |
 | `js/10_settings.js` | Settings, company profile, team, suppliers |
-| `js/11_sample_data.js` | Master data loader (603 ingredients, 90 recipes, 30 HM) |
+| `js/11_sample_data.js` | Init loader — ensures ingredients/recipes/homeMade arrays exist |
 | `js/12_init.js` | App initialisation & bootstrap |
 | `js/13_wastage.js` | Wastage log |
 | `js/14_homemade.js` | Home-made ingredients & HM inventory |

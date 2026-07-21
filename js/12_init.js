@@ -68,108 +68,27 @@ function updateSyncButtonVisibility() {
   if (btn) btn.style.display = show ? 'inline-flex' : 'none';
 }
 
-// JSONBin's free tier caps payloads at 100KB (and its edge appears to hard-
-// reject oversized PUTs with a 413 that lacks CORS headers — the browser then
-// reports it as an opaque "Load failed"/CORS error instead of a real 413).
-// state.ingredients/recipes/homeMade are largely the same master catalog data
-// baked into every device's copy of the app already, so instead of pushing
-// them wholesale we push only a per-field diff against each item's freshly-
-// loaded master default (e.g. just {inInventory:true} instead of the whole
-// ~300-byte record), plus any fully custom item not in the master list at all.
-function fieldDiff(a, b) {
-  const diff = {};
-  const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
-  for (const k of keys) {
-    if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) diff[k] = a[k];
-  }
-  return diff;
-}
-
-function buildCollectionSync(items, masterList, defaultBuilder) {
-  const masterById = {};
-  masterList.forEach(m => { masterById[m.id] = m; });
-  const overrides = {};
-  const custom = [];
-  (items || []).forEach(item => {
-    const master = masterById[item.id];
-    if (!master) { custom.push(item); return; }
-    const diff = fieldDiff(item, defaultBuilder(master));
-    if (Object.keys(diff).length) overrides[item.id] = diff;
-  });
-  return { overrides, custom };
-}
-
-function applyCollectionSync(items, overrides, custom) {
-  items.forEach(item => {
-    const diff = overrides && overrides[item.id];
-    if (diff) Object.assign(item, diff);
-  });
-  if (custom && custom.length) {
-    const existingIds = new Set(items.map(i => i.id));
-    custom.forEach(c => {
-      if (existingIds.has(c.id)) {
-        items[items.findIndex(i => i.id === c.id)] = c;
-      } else {
-        items.push(c);
-      }
-    });
-  }
-}
-
+// No more baked-in master catalog to diff against (removed) — ingredients/
+// recipes/homeMade are the user's own data now, so they sync as-is. Only the
+// company logo (a raw base64 image with no size cap) is worth excluding from
+// the payload, since it alone can run into MBs and has no business in a
+// 100KB JSON sync blob.
 function buildSyncPayload() {
-  const byTahweel = {};
-  (state.ingredients || []).forEach(i => { if (i.tahweel) byTahweel[i.tahweel] = i.id; });
-
-  const ingSync = buildCollectionSync(state.ingredients, MASTER_LIST_DATA,
-    m => ({ ...m, inInventory: false }));
-
-  const recSync = buildCollectionSync(state.recipes, MASTER_RECIPES_DATA,
-    m => ({ ...m, lines: m.lines.map(l => ({
-      id: l.id, ingId: byTahweel[l.tahweel] || '', qty: l.qty, unit: l.unit,
-    })).filter(l => l.qty > 0) }));
-
-  const hmSync = buildCollectionSync(state.homeMade, MASTER_HM_DATA,
-    m => ({ ...m, lines: m.lines.map(l => ({ ...l, ingId: byTahweel[l.tahweel] || '' })) }));
-
   const payload = { ...state };
-  delete payload.ingredients;
-  delete payload.recipes;
-  delete payload.homeMade;
-  payload.ingredientOverrides = ingSync.overrides;
-  payload.customIngredients   = ingSync.custom;
-  payload.recipeOverrides     = recSync.overrides;
-  payload.customRecipes       = recSync.custom;
-  payload.homeMadeOverrides   = hmSync.overrides;
-  payload.customHomeMade      = hmSync.custom;
-
-  // The company logo is a raw base64 image with no size cap (can run into MBs)
-  // — it has no business in a 100KB JSON sync payload. Keep it local to each
-  // device instead of syncing it; every other company field still syncs fine.
   if (payload.company && payload.company.logo) {
     payload.company = { ...payload.company };
     delete payload.company.logo;
   }
-
   return payload;
 }
 
-// Reapply the lightweight sync fields onto the local (already master-loaded)
-// ingredients/recipes/homeMade arrays after a pull/poll. Also self-heals any
-// of the three fields that ended up corrupted (e.g. non-array) from an older
-// broken sync payload, instead of leaving renders permanently crashing.
+// Self-heals ingredients/recipes/homeMade back to arrays if an older broken
+// sync payload ever left one of them corrupted (e.g. non-array), instead of
+// leaving renders permanently crashing.
 function applyIngredientSync(pulled) {
   if (!Array.isArray(state.ingredients)) state.ingredients = [];
   if (!Array.isArray(state.recipes)) state.recipes = [];
   if (!Array.isArray(state.homeMade)) state.homeMade = [];
-  if (pulled.ingredientOverrides || pulled.customIngredients) {
-    applyCollectionSync(state.ingredients, pulled.ingredientOverrides, pulled.customIngredients);
-  }
-  if (pulled.recipeOverrides || pulled.customRecipes) {
-    applyCollectionSync(state.recipes, pulled.recipeOverrides, pulled.customRecipes);
-  }
-  if (pulled.homeMadeOverrides || pulled.customHomeMade) {
-    applyCollectionSync(state.homeMade, pulled.homeMadeOverrides, pulled.customHomeMade);
-  }
 }
 
 // Manual "Sync Now" — pulls any remote changes, then pushes current state
