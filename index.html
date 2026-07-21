@@ -707,6 +707,27 @@
                 <input type="text" id="co-country" placeholder="UAE" oninput="saveCompanyProfile()">
               </div>
             </div>
+            <div class="form-row">
+              <div class="input-group">
+                <label class="input-label">Default Currency</label>
+                <select id="setting-currency" onchange="setCurrencyFromSettings(this.value)">
+                  <option value="AED">AED — UAE Dirham</option>
+                  <option value="USD">USD — US Dollar</option>
+                  <option value="EUR">EUR — Euro</option>
+                  <option value="GBP">GBP — British Pound</option>
+                  <option value="SAR">SAR — Saudi Riyal</option>
+                  <option value="QAR">QAR — Qatari Riyal</option>
+                  <option value="INR">INR — Indian Rupee</option>
+                  <option value="JPY">JPY — Japanese Yen</option>
+                  <option value="CAD">CAD — Canadian Dollar</option>
+                  <option value="AUD">AUD — Australian Dollar</option>
+                </select>
+              </div>
+              <div class="input-group">
+                <label class="input-label">Target Cost % (for indicators)</label>
+                <input type="number" id="setting-target-cost" value="22" min="5" max="50" oninput="saveSettings()">
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -716,40 +737,6 @@
         <div class="settings-section-title"><i class="fa-solid fa-users" style="margin-right:6px"></i>Team Members</div>
         <div id="users-list" style="margin-bottom:12px"></div>
         <button class="btn btn-ghost btn-sm" onclick="addUser()"><i class="fa-solid fa-plus"></i> Add Team Member</button>
-      </div>
-
-
-
-      <!-- Bar Details -->
-      <div class="settings-section">
-        <div class="settings-section-title">Bar Details</div>
-        <div class="form-row">
-          <div class="input-group">
-            <label class="input-label">Bar Name</label>
-            <input type="text" id="setting-bar-name" placeholder="e.g. Zuma Dubai" oninput="updateBarName()">
-          </div>
-          <div class="input-group">
-            <label class="input-label">Default Currency</label>
-            <select id="setting-currency" onchange="setCurrencyFromSettings(this.value)">
-              <option value="AED">AED — UAE Dirham</option>
-              <option value="USD">USD — US Dollar</option>
-              <option value="EUR">EUR — Euro</option>
-              <option value="GBP">GBP — British Pound</option>
-              <option value="SAR">SAR — Saudi Riyal</option>
-              <option value="QAR">QAR — Qatari Riyal</option>
-              <option value="INR">INR — Indian Rupee</option>
-              <option value="JPY">JPY — Japanese Yen</option>
-              <option value="CAD">CAD — Canadian Dollar</option>
-              <option value="AUD">AUD — Australian Dollar</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="input-group">
-            <label class="input-label">Target Cost % (for indicators)</label>
-            <input type="number" id="setting-target-cost" value="22" min="5" max="50" oninput="saveSettings()">
-          </div>
-        </div>
       </div>
 
       <!-- Cloud Sync -->

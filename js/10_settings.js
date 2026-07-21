@@ -447,7 +447,6 @@ function showAIOverlay(title, text) {
 }
 
 function renderSettings() {
-  const _sbn = document.getElementById('setting-bar-name'); if(_sbn) _sbn.value = state.barName;
   const _sc = document.getElementById('setting-currency'); if(_sc) _sc.value = state.currency;
   const _sak = document.getElementById('setting-api-key'); if(_sak) _sak.value = state.apiKey;
   const _stc = document.getElementById('setting-target-cost'); if(_stc) _stc.value = state.targetCostPct;
@@ -511,12 +510,6 @@ function renderSettings() {
   }
 }
 
-function updateBarName() {
-  state.barName = document.getElementById('setting-bar-name').value;
-  const _hbn=document.getElementById('header-bar-name'); if(_hbn) _hbn.textContent=state.barName;
-  saveSettings();
-}
-
 function applyHousePour() {
   const fromId = document.getElementById('pour-from')?.value;
   const toId   = document.getElementById('pour-to')?.value;
@@ -567,7 +560,6 @@ function applyHousePour() {
 }
 
 function saveSettings() {
-  state.barName = document.getElementById('setting-bar-name')?.value || state.barName;
   state.apiKey = document.getElementById('setting-api-key')?.value || '';
   state.targetCostPct = parseFloat(document.getElementById('setting-target-cost')?.value)||22;
   const _hbn2=document.getElementById('header-bar-name'); if(_hbn2) _hbn2.textContent=state.barName;
