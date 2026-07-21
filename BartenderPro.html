@@ -1085,6 +1085,16 @@ tr.ing-selected { background: rgba(201,168,76,0.05); }
         </div>
         <div class="form-row">
           <div class="input-group">
+            <label class="input-label">Alcoholic?</label>
+            <select id="hm-alcoholic">
+              <option value="1">Yes — track by bottle (Sealed/Open/Gross Wt)</option>
+              <option value="0">No — track by direct volume (In Stock)</option>
+            </select>
+            <div class="input-hint" style="color:var(--smoke)">Controls how this item's inventory count is entered.</div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="input-group">
             <label class="input-label" style="display:flex;align-items:center;gap:6px">
               <i class="fa-solid fa-weight-scale" style="color:var(--gold);font-size:11px"></i>
               Empty Bottle / Container Weight (tare)
@@ -5286,6 +5296,7 @@ function openHMModal(id=null) {
   _hsv('hm-method', h?.method||'');
   _hsv('hm-min-par', h?.minPar||0);
   _hsv('hm-track-inv', h?.trackInv!==false ? '1' : '0');
+  _hsv('hm-alcoholic', h?.isAlcoholic ? '1' : '0');
   _hsv('hm-tare', h?.tare||'');
   hmIngRows = h?.lines ? h.lines.map(l=>({...l})) : [];
   renderHMIngRows();
@@ -5350,6 +5361,7 @@ function saveHMItem() {
     method: document.getElementById('hm-method').value.trim(),
     minPar:   parseFloat(document.getElementById('hm-min-par')?.value)||0,
     trackInv: document.getElementById('hm-track-inv')?.value === '1',
+    isAlcoholic: document.getElementById('hm-alcoholic')?.value === '1',
     tare:     parseFloat(document.getElementById('hm-tare')?.value)||0,
     lines: hmIngRows.filter(r=>r.ingId&&r.qty>0),
     totalCost, costPerUnit,

@@ -519,6 +519,16 @@
         </div>
         <div class="form-row">
           <div class="input-group">
+            <label class="input-label">Alcoholic?</label>
+            <select id="hm-alcoholic">
+              <option value="1">Yes — track by bottle (Sealed/Open/Gross Wt)</option>
+              <option value="0">No — track by direct volume (In Stock)</option>
+            </select>
+            <div class="input-hint" style="color:var(--smoke)">Controls how this item's inventory count is entered.</div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="input-group">
             <label class="input-label" style="display:flex;align-items:center;gap:6px">
               <i class="fa-solid fa-weight-scale" style="color:var(--gold);font-size:11px"></i>
               Empty Bottle / Container Weight (tare)

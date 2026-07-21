@@ -111,6 +111,7 @@ function openHMModal(id=null) {
   _hsv('hm-method', h?.method||'');
   _hsv('hm-min-par', h?.minPar||0);
   _hsv('hm-track-inv', h?.trackInv!==false ? '1' : '0');
+  _hsv('hm-alcoholic', h?.isAlcoholic ? '1' : '0');
   _hsv('hm-tare', h?.tare||'');
   hmIngRows = h?.lines ? h.lines.map(l=>({...l})) : [];
   renderHMIngRows();
@@ -175,6 +176,7 @@ function saveHMItem() {
     method: document.getElementById('hm-method').value.trim(),
     minPar:   parseFloat(document.getElementById('hm-min-par')?.value)||0,
     trackInv: document.getElementById('hm-track-inv')?.value === '1',
+    isAlcoholic: document.getElementById('hm-alcoholic')?.value === '1',
     tare:     parseFloat(document.getElementById('hm-tare')?.value)||0,
     lines: hmIngRows.filter(r=>r.ingId&&r.qty>0),
     totalCost, costPerUnit,
