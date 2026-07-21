@@ -35,6 +35,45 @@ let _lastSyncTime  = 0;
 let _lastPushedAt  = 0; // timestamp of our last push, so we don't re-apply our own update
 const SYNC_MIN_INTERVAL_MS = 5000;
 
+// Persisted "last synced" timestamp, shown when idle (i.e. no sync/push/pull in flight)
+let _lastSyncedAt = null;
+try { const s = localStorage.getItem('bartenderpro_last_synced'); if (s) _lastSyncedAt = parseInt(s, 10) || null; } catch(e) {}
+
+function recordSynced() {
+  _lastSyncedAt = Date.now();
+  try { localStorage.setItem('bartenderpro_last_synced', String(_lastSyncedAt)); } catch(e) {}
+}
+
+function showLastSynced() {
+  if (!state.jsonbinId || !state.jsonbinKey) { setSyncStatus('', 'var(--smoke)'); return; }
+  const label = _lastSyncedAt
+    ? '☁ Last synced ' + new Date(_lastSyncedAt).toLocaleTimeString()
+    : '☁ Not synced yet';
+  setSyncStatus(label, 'var(--smoke)');
+}
+
+function updateSyncButtonVisibility() {
+  const show = !!(state.jsonbinId && state.jsonbinKey);
+  const btn = document.getElementById('sync-now-btn');
+  if (btn) btn.style.display = show ? 'inline-flex' : 'none';
+}
+
+// Manual "Sync Now" — pulls any remote changes, then pushes current state
+async function syncNow(btn) {
+  if (!state.jsonbinId || !state.jsonbinKey) { toast('Add JSONBin Bin ID + Master Key in Settings first'); return; }
+  const icon = btn?.querySelector('i');
+  if (icon) icon.classList.add('fa-spin');
+  if (btn) btn.disabled = true;
+  setSyncStatus('☁ Syncing…', 'var(--smoke)');
+  try {
+    await cloudPull(true);
+    await cloudPush();
+  } finally {
+    if (icon) icon.classList.remove('fa-spin');
+    if (btn) btn.disabled = false;
+  }
+}
+
 function initCloudSync() {
   // BroadcastChannel syncs across tabs on the same device instantly
   try {
@@ -47,6 +86,9 @@ function initCloudSync() {
       }
     };
   } catch(e) {}
+
+  updateSyncButtonVisibility();
+  showLastSynced();
 
   // Pull on startup, then auto-poll
   if (state.jsonbinId && state.jsonbinKey) {
@@ -78,6 +120,7 @@ async function cloudPoll() {
     const remote = data.record;
     // Only apply if remote is newer than our last push (uses _updatedAt timestamp)
     const remoteTs = remote._updatedAt || 0;
+    recordSynced();
     if (remoteTs > _lastPushedAt) {
       // Remote has changes we don't have — apply them
       const before = JSON.stringify(state);
@@ -87,8 +130,11 @@ async function cloudPoll() {
         renderAll();
         showSyncBanner('☁ Updated from another device');
         setSyncStatus('☁ Synced ' + new Date().toLocaleTimeString(), 'var(--success)');
+        setTimeout(showLastSynced, 3000);
+        return;
       }
     }
+    showLastSynced();
   } catch(e) {} // silent poll failures
 }
 
@@ -151,8 +197,9 @@ async function cloudPush() {
       body: JSON.stringify(state),
     });
     if (resp.ok) {
+      recordSynced();
       setSyncStatus('☁ Saved ' + new Date().toLocaleTimeString(), 'var(--success)');
-      setTimeout(() => setSyncStatus('☁ ' + new Date().toLocaleTimeString(), 'var(--smoke)'), 5000);
+      setTimeout(showLastSynced, 3000);
     } else if (resp.status === 429) {
       setSyncStatus('☁ Rate limited — retry in 1 min', 'var(--warning)');
       setTimeout(() => cloudPush(), 60000);
@@ -189,8 +236,10 @@ async function cloudPull(silent=false) {
       Object.assign(state, pulled);
       try { localStorage.setItem('barmanager_v1', JSON.stringify(state)); } catch(e) {}
       renderAll();
+      recordSynced();
       showSyncBanner('☁ Synced from cloud');
       setSyncStatus('☁ Pulled ' + new Date().toLocaleTimeString(), 'var(--success)');
+      setTimeout(showLastSynced, 3000);
     }
   } catch(e) {
     if (!silent) setSyncStatus('☁ Pull failed — check connection', 'var(--warning)');

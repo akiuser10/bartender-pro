@@ -25,6 +25,7 @@
   <div class="header-brand">🍸 Bartender Pro</div>
   <div class="header-right">
     <span id="sync-toast" style="font-size:11px;color:var(--success);transition:opacity 0.5s;opacity:0"></span>
+    <button id="sync-now-btn" class="btn btn-ghost" style="padding:4px 10px;font-size:11px;display:none" onclick="syncNow(this)" title="Sync Now"><i class="fa-solid fa-arrows-rotate"></i></button>
     <span id="sync-status" style="font-size:11px;color:var(--smoke)"></span>
     <span class="bar-name-display" id="header-bar-name">My Bar</span>
     <span id="currency-display" style="font-size:12px;color:var(--gold);font-weight:600;padding:4px 8px;background:rgba(201,168,76,0.1);border-radius:var(--radius-sm);border:1px solid rgba(201,168,76,0.2);cursor:pointer" onclick="showScreen('settings',document.querySelector('[onclick*=settings]'))"></span>
@@ -742,15 +743,16 @@
         <div class="form-row">
           <div class="input-group">
             <label class="input-label">JSONBin Bin ID</label>
-            <input type="text" id="setting-binid" placeholder="e.g. 64a3b2c1d0e9f8a7..." oninput="state.jsonbinId=this.value.trim();save();if(state.jsonbinId&&state.jsonbinKey){startPolling();}">
+            <input type="text" id="setting-binid" placeholder="e.g. 64a3b2c1d0e9f8a7..." oninput="state.jsonbinId=this.value.trim();save();updateSyncButtonVisibility();if(state.jsonbinId&&state.jsonbinKey){startPolling();}">
           </div>
           <div class="input-group">
             <label class="input-label">Master Key (keep secret)</label>
-            <input type="password" id="setting-binkey" placeholder="$2a$10$..." oninput="state.jsonbinKey=this.value.trim();save();if(state.jsonbinId&&state.jsonbinKey){startPolling();}">
+            <input type="password" id="setting-binkey" placeholder="$2a$10$..." oninput="state.jsonbinKey=this.value.trim();save();updateSyncButtonVisibility();if(state.jsonbinId&&state.jsonbinKey){startPolling();}">
           </div>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;align-items:center">
-          <button class="btn btn-gold" onclick="cloudPull()"><i class="fa-solid fa-cloud-arrow-down"></i> Pull from cloud</button>
+          <button class="btn btn-gold" id="sync-now-btn-settings" onclick="syncNow(this)"><i class="fa-solid fa-arrows-rotate"></i> Sync Now</button>
+          <button class="btn btn-ghost" onclick="cloudPull()"><i class="fa-solid fa-cloud-arrow-down"></i> Pull from cloud</button>
           <button class="btn btn-ghost" onclick="cloudPush().then(()=>toast('✓ Pushed to cloud'))"><i class="fa-solid fa-cloud-arrow-up"></i> Push to cloud</button>
           <span id="sync-status-settings" style="font-size:12px;color:var(--smoke)">—</span>
         </div>
