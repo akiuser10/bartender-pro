@@ -1740,6 +1740,12 @@ function load() {
       Object.assign(state, parsed);
     }
   } catch(e){}
+  // Self-heal if an older broken sync ever left one of these as a non-array
+  // (e.g. {}) — loadMasterIngredients() repopulates from master data below,
+  // rather than every render crashing on state.recipes.filter() forever.
+  if (!Array.isArray(state.ingredients)) state.ingredients = [];
+  if (!Array.isArray(state.recipes)) state.recipes = [];
+  if (!Array.isArray(state.homeMade)) state.homeMade = [];
 }
 
 // ═══════════════════════════════════════════════════════
@@ -4851,57 +4857,99 @@ function updateSyncButtonVisibility() {
   if (btn) btn.style.display = show ? 'inline-flex' : 'none';
 }
 
-// JSONBin's free tier caps payloads at 100KB. state.ingredients alone runs
-// ~140KB because it's the full 600+ item master catalog, baked into every
-// device's copy of the app already — no need to push it wholesale. Instead
-// we push only ingredients that differ from their fresh-loaded master
-// default (e.g. inInventory toggled on, cost edited) plus any fully custom
-// ingredient a user added that isn't in the master list at all.
-function ingredientDiffersFromMaster(ing, master) {
-  const keys = new Set([...Object.keys(ing), ...Object.keys(master)]);
+// JSONBin's free tier caps payloads at 100KB (and its edge appears to hard-
+// reject oversized PUTs with a 413 that lacks CORS headers — the browser then
+// reports it as an opaque "Load failed"/CORS error instead of a real 413).
+// state.ingredients/recipes/homeMade are largely the same master catalog data
+// baked into every device's copy of the app already, so instead of pushing
+// them wholesale we push only a per-field diff against each item's freshly-
+// loaded master default (e.g. just {inInventory:true} instead of the whole
+// ~300-byte record), plus any fully custom item not in the master list at all.
+function fieldDiff(a, b) {
+  const diff = {};
+  const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
   for (const k of keys) {
-    if (JSON.stringify(ing[k]) !== JSON.stringify(master[k])) return true;
+    if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) diff[k] = a[k];
   }
-  return false;
+  return diff;
+}
+
+function buildCollectionSync(items, masterList, defaultBuilder) {
+  const masterById = {};
+  masterList.forEach(m => { masterById[m.id] = m; });
+  const overrides = {};
+  const custom = [];
+  (items || []).forEach(item => {
+    const master = masterById[item.id];
+    if (!master) { custom.push(item); return; }
+    const diff = fieldDiff(item, defaultBuilder(master));
+    if (Object.keys(diff).length) overrides[item.id] = diff;
+  });
+  return { overrides, custom };
+}
+
+function applyCollectionSync(items, overrides, custom) {
+  items.forEach(item => {
+    const diff = overrides && overrides[item.id];
+    if (diff) Object.assign(item, diff);
+  });
+  if (custom && custom.length) {
+    const existingIds = new Set(items.map(i => i.id));
+    custom.forEach(c => {
+      if (existingIds.has(c.id)) {
+        items[items.findIndex(i => i.id === c.id)] = c;
+      } else {
+        items.push(c);
+      }
+    });
+  }
 }
 
 function buildSyncPayload() {
-  const masterById = {};
-  MASTER_LIST_DATA.forEach(d => { masterById[d.id] = d; });
-  const ingredientOverrides = {};
-  const customIngredients = [];
-  (state.ingredients || []).forEach(ing => {
-    const master = masterById[ing.id];
-    if (!master) { customIngredients.push(ing); return; }
-    const defaultRecord = { ...master, inInventory: false };
-    if (ingredientDiffersFromMaster(ing, defaultRecord)) ingredientOverrides[ing.id] = ing;
-  });
+  const byTahweel = {};
+  (state.ingredients || []).forEach(i => { if (i.tahweel) byTahweel[i.tahweel] = i.id; });
+
+  const ingSync = buildCollectionSync(state.ingredients, MASTER_LIST_DATA,
+    m => ({ ...m, inInventory: false }));
+
+  const recSync = buildCollectionSync(state.recipes, MASTER_RECIPES_DATA,
+    m => ({ ...m, lines: m.lines.map(l => ({
+      id: l.id, ingId: byTahweel[l.tahweel] || '', qty: l.qty, unit: l.unit,
+    })).filter(l => l.qty > 0) }));
+
+  const hmSync = buildCollectionSync(state.homeMade, MASTER_HM_DATA,
+    m => ({ ...m, lines: m.lines.map(l => ({ ...l, ingId: byTahweel[l.tahweel] || '' })) }));
 
   const payload = { ...state };
   delete payload.ingredients;
-  payload.ingredientOverrides = ingredientOverrides;
-  payload.customIngredients = customIngredients;
+  delete payload.recipes;
+  delete payload.homeMade;
+  payload.ingredientOverrides = ingSync.overrides;
+  payload.customIngredients   = ingSync.custom;
+  payload.recipeOverrides     = recSync.overrides;
+  payload.customRecipes       = recSync.custom;
+  payload.homeMadeOverrides   = hmSync.overrides;
+  payload.customHomeMade      = hmSync.custom;
   return payload;
 }
 
-// Reapply the lightweight ingredient sync fields onto the local (already
-// master-loaded) ingredients array after a pull/poll.
+// Reapply the lightweight sync fields onto the local (already master-loaded)
+// ingredients/recipes/homeMade arrays after a pull/poll. Also self-heals any
+// of the three fields that ended up corrupted (e.g. non-array) from an older
+// broken sync payload, instead of leaving renders permanently crashing.
 function applyIngredientSync(pulled) {
-  if (!pulled.ingredientOverrides && !pulled.customIngredients) return;
-  const overrides = pulled.ingredientOverrides || {};
-  const customs = pulled.customIngredients || [];
-  if (!state.ingredients) state.ingredients = [];
-  state.ingredients.forEach((ing, idx) => {
-    if (overrides[ing.id]) state.ingredients[idx] = overrides[ing.id];
-  });
-  const existingIds = new Set(state.ingredients.map(i => i.id));
-  customs.forEach(c => {
-    if (existingIds.has(c.id)) {
-      state.ingredients[state.ingredients.findIndex(i => i.id === c.id)] = c;
-    } else {
-      state.ingredients.push(c);
-    }
-  });
+  if (!Array.isArray(state.ingredients)) state.ingredients = [];
+  if (!Array.isArray(state.recipes)) state.recipes = [];
+  if (!Array.isArray(state.homeMade)) state.homeMade = [];
+  if (pulled.ingredientOverrides || pulled.customIngredients) {
+    applyCollectionSync(state.ingredients, pulled.ingredientOverrides, pulled.customIngredients);
+  }
+  if (pulled.recipeOverrides || pulled.customRecipes) {
+    applyCollectionSync(state.recipes, pulled.recipeOverrides, pulled.customRecipes);
+  }
+  if (pulled.homeMadeOverrides || pulled.customHomeMade) {
+    applyCollectionSync(state.homeMade, pulled.homeMadeOverrides, pulled.customHomeMade);
+  }
 }
 
 // Manual "Sync Now" — pulls any remote changes, then pushes current state

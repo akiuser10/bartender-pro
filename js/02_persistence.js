@@ -34,4 +34,10 @@ function load() {
       Object.assign(state, parsed);
     }
   } catch(e){}
+  // Self-heal if an older broken sync ever left one of these as a non-array
+  // (e.g. {}) — loadMasterIngredients() repopulates from master data below,
+  // rather than every render crashing on state.recipes.filter() forever.
+  if (!Array.isArray(state.ingredients)) state.ingredients = [];
+  if (!Array.isArray(state.recipes)) state.recipes = [];
+  if (!Array.isArray(state.homeMade)) state.homeMade = [];
 }
