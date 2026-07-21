@@ -39,6 +39,28 @@ function showLoginPanel(panel) {
   });
   const loginErr = document.getElementById('login-error'); if (loginErr) loginErr.style.display = 'none';
   const regErr = document.getElementById('login-register-error'); if (regErr) regErr.style.display = 'none';
+  if (panel === 'register') applyRegisterCompanyLock();
+}
+
+// This data store belongs to one company at a time — once it has one, lock
+// the Company field to it so a typo or a second team can't spin up a rival
+// company's data inside the same synced dataset. registerUser() re-checks
+// this server-side-equivalent (state-side) too, in case the field is tampered with.
+function applyRegisterCompanyLock() {
+  const companyEl = document.getElementById('reg-company');
+  const hintEl = document.getElementById('reg-company-hint');
+  if (!companyEl) return;
+  const existing = state.company?.name;
+  if (existing) {
+    companyEl.value = existing;
+    companyEl.readOnly = true;
+    companyEl.style.opacity = '0.7';
+    if (hintEl) { hintEl.textContent = `This device is set up for ${existing} — registering will add you to this company's team.`; hintEl.style.display = 'block'; }
+  } else {
+    companyEl.readOnly = false;
+    companyEl.style.opacity = '1';
+    if (hintEl) hintEl.style.display = 'none';
+  }
 }
 
 function loginAs(user, persist = true) {
@@ -98,6 +120,11 @@ async function registerUser() {
   if (pw.length < 4) { showErr('Password must be at least 4 characters'); return; }
   if (pw !== pw2) { showErr('Passwords do not match'); return; }
   if (findUserByEmail(email)) { showErr('An account with this email already exists — log in instead'); return; }
+  const existingCompany = state.company?.name;
+  if (existingCompany && company.toLowerCase() !== existingCompany.toLowerCase()) {
+    showErr(`This device already belongs to "${existingCompany}". Contact a manager to be added, or reset app data (Settings) to start a new company.`);
+    return;
+  }
 
   const hash = await sha256Hex(pw);
   const isFirstUser = !(state.users||[]).length;
