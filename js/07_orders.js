@@ -189,7 +189,7 @@ function placeOrder() {
     low_stock:'Low Stock Alert', new_listing:'New Listing / First Order', other:'Other' };
   // Show confirmation modal with reason selector
   const modal = document.createElement('div');
-  modal.className = 'modal-overlay active';
+  modal.className = 'modal-overlay open';
   modal.id = 'place-order-modal';
   const suppliers = [...new Set(items.map(x=>x.ing.supplier).filter(Boolean))];
   modal.innerHTML = `
@@ -244,7 +244,7 @@ function confirmPlaceOrder() {
     id: uid(), reason, reasonLabel: REASON_LABELS[reason]||reason,
     date: new Date().toLocaleDateString('en-GB'),
     time: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
-    placedBy: state.invUsername||'Unknown',
+    placedBy: currentUser?.name || state.invUsername || 'Unknown',
     notes,
     items: items.map(x=>({
       ingId: x.ing.id, desc: x.ing.desc, supplier: x.ing.supplier||'',

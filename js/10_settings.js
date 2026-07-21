@@ -70,29 +70,66 @@ function renderUsersList() {
       <button class="btn btn-danger-ghost btn-sm btn-icon" onclick="removeUser(${i})"><i class="fa-solid fa-trash"></i></button>
     </div>`).join('');
 }
+let editUserIdx = null;
+
 function addUser() {
-  const name=prompt('Full Name:'); if(!name?.trim()) return;
-  const position=prompt('Position (e.g. Head Bartender):')||'';
-  const email=prompt('Email:')||'';
-  const mobile=prompt('Mobile:')||'';
-  const r=prompt('Role:\n1 = Manager\n2 = Bartender','2')||'2';
-  if (!state.users) state.users=[];
-  state.users.push({name:name.trim(),position,email,mobile,role:r.trim()==='1'?'manager':'bartender'});
-  save(); renderUsersList(); toast(`✓ ${name} added to team`);
+  editUserIdx = null;
+  const sv=(id,v)=>{const el=document.getElementById(id); if(el) el.value=v;};
+  document.getElementById('user-modal-title').innerHTML = '<i class="fa-solid fa-user"></i> Add Team Member';
+  sv('user-name',''); sv('user-position',''); sv('user-email',''); sv('user-mobile',''); sv('user-role','bartender'); sv('user-password','');
+  document.getElementById('user-password-label').textContent = 'Password';
+  document.getElementById('user-modal').classList.add('open');
 }
 function editUser(idx) {
   const u=(state.users||[])[idx]; if(!u) return;
-  u.name=prompt('Full Name:',u.name)||u.name;
-  u.position=prompt('Position:',u.position)||u.position;
-  u.email=prompt('Email:',u.email)||u.email;
-  u.mobile=prompt('Mobile:',u.mobile)||u.mobile;
-  const r=prompt('Role (1=Manager, 2=Bartender):',u.role==='manager'?'1':'2')||'2';
-  u.role=r.trim()==='1'?'manager':'bartender';
-  save(); renderUsersList();
+  editUserIdx = idx;
+  const sv=(id,v)=>{const el=document.getElementById(id); if(el) el.value=v||'';};
+  document.getElementById('user-modal-title').innerHTML = '<i class="fa-solid fa-user"></i> Edit Team Member';
+  sv('user-name',u.name); sv('user-position',u.position); sv('user-email',u.email);
+  sv('user-mobile',u.mobile); sv('user-role',u.role||'bartender'); sv('user-password','');
+  document.getElementById('user-password-label').textContent = 'New Password (leave blank to keep current)';
+  document.getElementById('user-modal').classList.add('open');
 }
+function closeUserModal() { document.getElementById('user-modal').classList.remove('open'); }
+
+async function saveUserModal() {
+  const name = document.getElementById('user-name').value.trim();
+  const email = document.getElementById('user-email').value.trim();
+  const pw = document.getElementById('user-password').value;
+  if (!name) { toast('Enter a name'); return; }
+  if (!email) { toast('Enter a login email'); return; }
+  if (!state.users) state.users = [];
+  const dupe = findUserByEmail(email);
+  if (dupe && state.users.indexOf(dupe) !== editUserIdx) { toast('That email is already used by another team member'); return; }
+  if (editUserIdx === null && !pw) { toast('Set a password for this account'); return; }
+  const position = document.getElementById('user-position').value.trim();
+  const mobile = document.getElementById('user-mobile').value.trim();
+  const role = document.getElementById('user-role').value;
+  if (editUserIdx !== null) {
+    const u = state.users[editUserIdx];
+    const wasCurrentUser = currentUser && u.email && currentUser.email.toLowerCase() === u.email.toLowerCase();
+    Object.assign(u, {name, position, email, mobile, role});
+    if (pw) u.password = await sha256Hex(pw);
+    if (wasCurrentUser) {
+      currentUser = u;
+      try { localStorage.setItem(SESSION_KEY, JSON.stringify({email:u.email, ts:Date.now()})); } catch(e) {}
+      const nameEl = document.getElementById('current-user-name'); if (nameEl) nameEl.textContent = u.name;
+    }
+    toast(`✓ ${name} updated`);
+  } else {
+    const password = await sha256Hex(pw);
+    state.users.push({name, position, email, mobile, role, password});
+    toast(`✓ ${name} added to team`);
+  }
+  save(); closeUserModal(); renderUsersList();
+}
+
 function removeUser(idx) {
-  if (!confirm('Remove this team member?')) return;
-  (state.users||[]).splice(idx,1); save(); renderUsersList();
+  const u=(state.users||[])[idx]; if(!u) return;
+  if (!confirm('Remove this team member? They will no longer be able to log in.')) return;
+  const wasCurrentUser = currentUser && u.email && currentUser.email.toLowerCase() === u.email.toLowerCase();
+  state.users.splice(idx,1); save(); renderUsersList();
+  if (wasCurrentUser) logout();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -377,6 +414,8 @@ function emailOrderToSuppliers() {
   });
   let count=0;
   const co=state.company||{};
+  const senderName = currentUser?.name || state.invUsername || co.name || 'Bar Team';
+  const senderEmail = currentUser?.email || co.email || '';
   Object.entries(bySupplier).forEach(([supName,items])=>{
     const supInfo=sups.find(s=>s.name.toLowerCase()===supName.toLowerCase());
     const to=supInfo?.email||'';
@@ -385,9 +424,13 @@ function emailOrderToSuppliers() {
       `Dear ${supInfo?.contact||supName},\n\nPlease process the following order.\n\n`+
       `Date: ${order.date}\nReason: ${order.reasonLabel||'Routine Restock'}\n\n`+
       items.map(it=>`• ${it.desc}  (Code: ${it.tahweel||'—'})\n  Qty: ${it.qtyOrdered} unit(s)  ·  Unit: ${fmt(it.unitCost)}`).join('\n\n')+
-      `\n\nBest regards,\n${state.invUsername||co.name||'Bar Team'}\n${co.phone||''}\n${co.email||''}`
+      `\n\nBest regards,\n${senderName}\n${co.phone||''}\n${senderEmail}`
     );
-    window.open(`mailto:${to}?subject=${subj}&body=${body}`,'_blank');
+    // CC the logged-in user so they always get a copy — mailto can't tell us
+    // which account the phone's mail app actually sends from, so a CC is the
+    // only way to guarantee they see a record of the order that went out.
+    const ccParam = senderEmail ? `&cc=${encodeURIComponent(senderEmail)}` : '';
+    window.open(`mailto:${to}?subject=${subj}${ccParam}&body=${body}`,'_blank');
     count++;
   });
   toast(`✓ ${count} email draft${count!==1?'s':''} opened — review and send`);

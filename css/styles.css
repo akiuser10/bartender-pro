@@ -571,3 +571,21 @@ tr.ing-selected { background: rgba(201,168,76,0.05); }
 @media (min-width: 1200px) {
   :root { --sidebar-w: 240px; }
 }
+
+/* ── LOGIN GATE ───────────────────────────────────────────── */
+.login-screen {
+  position: fixed; inset: 0; z-index: 10000;
+  background: var(--obsidian);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.login-screen.hidden { display: none; }
+.login-card {
+  background: var(--surface); border-radius: var(--radius); padding: 32px;
+  width: 100%; max-width: 340px; border: 1px solid rgba(255,255,255,0.08);
+}
+.login-brand {
+  display: flex; align-items: center; gap: 10px; font-size: 18px; color: var(--gold);
+  font-weight: 600; margin-bottom: 24px; justify-content: center;
+}
+.login-brand img { width: 32px; height: 32px; border-radius: 8px; }

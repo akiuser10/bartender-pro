@@ -588,9 +588,58 @@ tr.ing-selected { background: rgba(201,168,76,0.05); }
 @media (min-width: 1200px) {
   :root { --sidebar-w: 240px; }
 }
+
+/* ── LOGIN GATE ───────────────────────────────────────────── */
+.login-screen {
+  position: fixed; inset: 0; z-index: 10000;
+  background: var(--obsidian);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.login-screen.hidden { display: none; }
+.login-card {
+  background: var(--surface); border-radius: var(--radius); padding: 32px;
+  width: 100%; max-width: 340px; border: 1px solid rgba(255,255,255,0.08);
+}
+.login-brand {
+  display: flex; align-items: center; gap: 10px; font-size: 18px; color: var(--gold);
+  font-weight: 600; margin-bottom: 24px; justify-content: center;
+}
+.login-brand img { width: 32px; height: 32px; border-radius: 8px; }
 </style>
 </head>
 <body>
+
+<!-- LOGIN GATE -->
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <div class="login-brand"><img src="assets/header-icon.png" alt=""> Bartender Pro</div>
+
+    <div id="login-form-wrap">
+      <div class="input-group">
+        <label class="input-label">Email</label>
+        <input type="email" id="login-email" placeholder="you@bar.com" autocomplete="username">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')attemptLogin()">
+      </div>
+      <div id="login-error" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none"></div>
+      <button class="btn btn-gold" style="width:100%" onclick="attemptLogin()"><i class="fa-solid fa-right-to-bracket"></i> Log In</button>
+    </div>
+
+    <div id="login-firstrun-wrap" style="display:none">
+      <div style="font-size:12px;color:var(--smoke);margin-bottom:12px">No team members yet — create the first account. This person will be the first Manager.</div>
+      <div class="input-group"><label class="input-label">Company / Bar Name</label><input type="text" id="login-new-company" placeholder="e.g. Zuma Dubai"></div>
+      <div class="input-group"><label class="input-label">Full Name</label><input type="text" id="login-new-name"></div>
+      <div class="input-group"><label class="input-label">Email</label><input type="email" id="login-new-email" autocomplete="username"></div>
+      <div class="input-group"><label class="input-label">Password</label><input type="password" id="login-new-password" autocomplete="new-password"></div>
+      <div id="login-firstrun-error" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none"></div>
+      <button class="btn btn-gold" style="width:100%" onclick="createFirstAccount()"><i class="fa-solid fa-user-plus"></i> Create Account & Log In</button>
+      <div style="font-size:11px;color:var(--smoke);margin-top:12px;text-align:center">Joining an existing team? Ask a manager to add you from Settings → Team Members on their device, or to share this company's Cloud Sync Bin ID/Key with you first.</div>
+    </div>
+  </div>
+</div>
 
 <!-- HEADER -->
 <header id="app-header">
@@ -601,6 +650,8 @@ tr.ing-selected { background: rgba(201,168,76,0.05); }
     <span id="sync-status" style="font-size:11px;color:var(--smoke)"></span>
     <span class="bar-name-display" id="header-bar-name">My Bar</span>
     <span id="currency-display" style="font-size:12px;color:var(--gold);font-weight:600;padding:4px 8px;background:rgba(201,168,76,0.1);border-radius:var(--radius-sm);border:1px solid rgba(201,168,76,0.2);cursor:pointer" onclick="showScreen('settings',document.querySelector('[onclick*=settings]'))"></span>
+    <span id="current-user-name" style="font-size:12px;color:var(--ice-dim);cursor:pointer" title="Logged in as — click to open Settings" onclick="showScreen('settings',document.querySelector('[onclick*=settings]'))"></span>
+    <button class="btn btn-ghost btn-sm btn-icon" onclick="logout()" title="Log out"><i class="fa-solid fa-right-from-bracket"></i></button>
   </div>
 </header>
 
@@ -1400,6 +1451,34 @@ tr.ing-selected { background: rgba(201,168,76,0.05); }
     </div>
 
   </main>
+</div>
+
+<!-- TEAM MEMBER MODAL -->
+<div class="modal-overlay" id="user-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="user-modal-title"><i class="fa-solid fa-user"></i> Add Team Member</h2>
+      <button class="modal-close" onclick="closeUserModal()">×</button>
+    </div>
+    <div class="modal-body" style="padding:20px">
+      <div class="input-group"><label class="input-label">Full Name</label><input type="text" id="user-name"></div>
+      <div class="input-group"><label class="input-label">Position</label><input type="text" id="user-position" placeholder="e.g. Head Bartender"></div>
+      <div class="input-group"><label class="input-label">Email (login ID)</label><input type="email" id="user-email" autocomplete="off"></div>
+      <div class="input-group"><label class="input-label">Mobile</label><input type="text" id="user-mobile"></div>
+      <div class="input-group">
+        <label class="input-label">Role</label>
+        <select id="user-role"><option value="bartender">Bartender</option><option value="manager">Manager</option></select>
+      </div>
+      <div class="input-group">
+        <label class="input-label" id="user-password-label">Password</label>
+        <input type="password" id="user-password" autocomplete="new-password" placeholder="Set a login password">
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+        <button class="btn btn-ghost" onclick="closeUserModal()">Cancel</button>
+        <button class="btn btn-gold" onclick="saveUserModal()"><i class="fa-solid fa-check"></i> Save</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- MOBILE NAV -->
@@ -3407,7 +3486,7 @@ function placeOrder() {
     low_stock:'Low Stock Alert', new_listing:'New Listing / First Order', other:'Other' };
   // Show confirmation modal with reason selector
   const modal = document.createElement('div');
-  modal.className = 'modal-overlay active';
+  modal.className = 'modal-overlay open';
   modal.id = 'place-order-modal';
   const suppliers = [...new Set(items.map(x=>x.ing.supplier).filter(Boolean))];
   modal.innerHTML = `
@@ -3462,7 +3541,7 @@ function confirmPlaceOrder() {
     id: uid(), reason, reasonLabel: REASON_LABELS[reason]||reason,
     date: new Date().toLocaleDateString('en-GB'),
     time: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
-    placedBy: state.invUsername||'Unknown',
+    placedBy: currentUser?.name || state.invUsername || 'Unknown',
     notes,
     items: items.map(x=>({
       ingId: x.ing.id, desc: x.ing.desc, supplier: x.ing.supplier||'',
@@ -4209,29 +4288,66 @@ function renderUsersList() {
       <button class="btn btn-danger-ghost btn-sm btn-icon" onclick="removeUser(${i})"><i class="fa-solid fa-trash"></i></button>
     </div>`).join('');
 }
+let editUserIdx = null;
+
 function addUser() {
-  const name=prompt('Full Name:'); if(!name?.trim()) return;
-  const position=prompt('Position (e.g. Head Bartender):')||'';
-  const email=prompt('Email:')||'';
-  const mobile=prompt('Mobile:')||'';
-  const r=prompt('Role:\n1 = Manager\n2 = Bartender','2')||'2';
-  if (!state.users) state.users=[];
-  state.users.push({name:name.trim(),position,email,mobile,role:r.trim()==='1'?'manager':'bartender'});
-  save(); renderUsersList(); toast(`✓ ${name} added to team`);
+  editUserIdx = null;
+  const sv=(id,v)=>{const el=document.getElementById(id); if(el) el.value=v;};
+  document.getElementById('user-modal-title').innerHTML = '<i class="fa-solid fa-user"></i> Add Team Member';
+  sv('user-name',''); sv('user-position',''); sv('user-email',''); sv('user-mobile',''); sv('user-role','bartender'); sv('user-password','');
+  document.getElementById('user-password-label').textContent = 'Password';
+  document.getElementById('user-modal').classList.add('open');
 }
 function editUser(idx) {
   const u=(state.users||[])[idx]; if(!u) return;
-  u.name=prompt('Full Name:',u.name)||u.name;
-  u.position=prompt('Position:',u.position)||u.position;
-  u.email=prompt('Email:',u.email)||u.email;
-  u.mobile=prompt('Mobile:',u.mobile)||u.mobile;
-  const r=prompt('Role (1=Manager, 2=Bartender):',u.role==='manager'?'1':'2')||'2';
-  u.role=r.trim()==='1'?'manager':'bartender';
-  save(); renderUsersList();
+  editUserIdx = idx;
+  const sv=(id,v)=>{const el=document.getElementById(id); if(el) el.value=v||'';};
+  document.getElementById('user-modal-title').innerHTML = '<i class="fa-solid fa-user"></i> Edit Team Member';
+  sv('user-name',u.name); sv('user-position',u.position); sv('user-email',u.email);
+  sv('user-mobile',u.mobile); sv('user-role',u.role||'bartender'); sv('user-password','');
+  document.getElementById('user-password-label').textContent = 'New Password (leave blank to keep current)';
+  document.getElementById('user-modal').classList.add('open');
 }
+function closeUserModal() { document.getElementById('user-modal').classList.remove('open'); }
+
+async function saveUserModal() {
+  const name = document.getElementById('user-name').value.trim();
+  const email = document.getElementById('user-email').value.trim();
+  const pw = document.getElementById('user-password').value;
+  if (!name) { toast('Enter a name'); return; }
+  if (!email) { toast('Enter a login email'); return; }
+  if (!state.users) state.users = [];
+  const dupe = findUserByEmail(email);
+  if (dupe && state.users.indexOf(dupe) !== editUserIdx) { toast('That email is already used by another team member'); return; }
+  if (editUserIdx === null && !pw) { toast('Set a password for this account'); return; }
+  const position = document.getElementById('user-position').value.trim();
+  const mobile = document.getElementById('user-mobile').value.trim();
+  const role = document.getElementById('user-role').value;
+  if (editUserIdx !== null) {
+    const u = state.users[editUserIdx];
+    const wasCurrentUser = currentUser && u.email && currentUser.email.toLowerCase() === u.email.toLowerCase();
+    Object.assign(u, {name, position, email, mobile, role});
+    if (pw) u.password = await sha256Hex(pw);
+    if (wasCurrentUser) {
+      currentUser = u;
+      try { localStorage.setItem(SESSION_KEY, JSON.stringify({email:u.email, ts:Date.now()})); } catch(e) {}
+      const nameEl = document.getElementById('current-user-name'); if (nameEl) nameEl.textContent = u.name;
+    }
+    toast(`✓ ${name} updated`);
+  } else {
+    const password = await sha256Hex(pw);
+    state.users.push({name, position, email, mobile, role, password});
+    toast(`✓ ${name} added to team`);
+  }
+  save(); closeUserModal(); renderUsersList();
+}
+
 function removeUser(idx) {
-  if (!confirm('Remove this team member?')) return;
-  (state.users||[]).splice(idx,1); save(); renderUsersList();
+  const u=(state.users||[])[idx]; if(!u) return;
+  if (!confirm('Remove this team member? They will no longer be able to log in.')) return;
+  const wasCurrentUser = currentUser && u.email && currentUser.email.toLowerCase() === u.email.toLowerCase();
+  state.users.splice(idx,1); save(); renderUsersList();
+  if (wasCurrentUser) logout();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -4516,6 +4632,8 @@ function emailOrderToSuppliers() {
   });
   let count=0;
   const co=state.company||{};
+  const senderName = currentUser?.name || state.invUsername || co.name || 'Bar Team';
+  const senderEmail = currentUser?.email || co.email || '';
   Object.entries(bySupplier).forEach(([supName,items])=>{
     const supInfo=sups.find(s=>s.name.toLowerCase()===supName.toLowerCase());
     const to=supInfo?.email||'';
@@ -4524,9 +4642,13 @@ function emailOrderToSuppliers() {
       `Dear ${supInfo?.contact||supName},\n\nPlease process the following order.\n\n`+
       `Date: ${order.date}\nReason: ${order.reasonLabel||'Routine Restock'}\n\n`+
       items.map(it=>`• ${it.desc}  (Code: ${it.tahweel||'—'})\n  Qty: ${it.qtyOrdered} unit(s)  ·  Unit: ${fmt(it.unitCost)}`).join('\n\n')+
-      `\n\nBest regards,\n${state.invUsername||co.name||'Bar Team'}\n${co.phone||''}\n${co.email||''}`
+      `\n\nBest regards,\n${senderName}\n${co.phone||''}\n${senderEmail}`
     );
-    window.open(`mailto:${to}?subject=${subj}&body=${body}`,'_blank');
+    // CC the logged-in user so they always get a copy — mailto can't tell us
+    // which account the phone's mail app actually sends from, so a CC is the
+    // only way to guarantee they see a record of the order that went out.
+    const ccParam = senderEmail ? `&cc=${encodeURIComponent(senderEmail)}` : '';
+    window.open(`mailto:${to}?subject=${subj}${ccParam}&body=${body}`,'_blank');
     count++;
   });
   toast(`✓ ${count} email draft${count!==1?'s':''} opened — review and send`);
@@ -4743,6 +4865,127 @@ function loadMasterIngredients() {
 
 
 // ═══════════════════════════════════════════════════════
+// AUTH — per-user login (email + password), gates the app
+// Each team member (state.users[]) has an email + hashed password. The app is
+// gated behind #login-screen until a valid session exists for this device.
+// ═══════════════════════════════════════════════════════
+const SESSION_KEY = 'bartenderpro_session';
+let currentUser = null;
+
+async function sha256Hex(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function findUserByEmail(email) {
+  const e = (email || '').trim().toLowerCase();
+  if (!e) return null;
+  return (state.users || []).find(u => (u.email || '').trim().toLowerCase() === e);
+}
+
+function initAuthGate() {
+  let session = null;
+  try { session = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch (e) {}
+  if (session?.email) {
+    const u = findUserByEmail(session.email);
+    if (u) { loginAs(u, false); return; }
+  }
+  renderLoginScreen();
+}
+
+function renderLoginScreen() {
+  const hasUsers = (state.users || []).length > 0;
+  const loginWrap = document.getElementById('login-form-wrap');
+  const firstRunWrap = document.getElementById('login-firstrun-wrap');
+  if (loginWrap) loginWrap.style.display = hasUsers ? 'block' : 'none';
+  if (firstRunWrap) firstRunWrap.style.display = hasUsers ? 'none' : 'block';
+}
+
+function loginAs(user, persist = true) {
+  currentUser = user;
+  state.invUsername = user.name;
+  if (!state.recvUsername) state.recvUsername = user.name;
+  if (persist) {
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify({ email: user.email, ts: Date.now() })); } catch (e) {}
+  }
+  const screen = document.getElementById('login-screen');
+  if (screen) screen.classList.add('hidden');
+  const el1 = document.getElementById('inv-username'); if (el1) el1.value = user.name;
+  const el2 = document.getElementById('recv-username'); if (el2) el2.value = state.recvUsername;
+  const nameEl = document.getElementById('current-user-name'); if (nameEl) nameEl.textContent = user.name;
+  save();
+}
+
+function showLoginError(msg) {
+  const errEl = document.getElementById('login-error');
+  if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+}
+
+async function attemptLogin() {
+  const email = document.getElementById('login-email')?.value || '';
+  const pw = document.getElementById('login-password')?.value || '';
+  const errEl = document.getElementById('login-error');
+  if (errEl) errEl.style.display = 'none';
+  if (!email || !pw) { showLoginError('Enter your email and password'); return; }
+  const user = findUserByEmail(email);
+  if (!user) { showLoginError('Invalid email or password'); return; }
+  const hash = await sha256Hex(pw);
+  if (user.password !== hash) { showLoginError('Invalid email or password'); return; }
+  loginAs(user, true);
+  toast(`Welcome back, ${user.name}`);
+}
+
+async function createFirstAccount() {
+  const company = document.getElementById('login-new-company')?.value.trim();
+  const name = document.getElementById('login-new-name')?.value.trim();
+  const email = document.getElementById('login-new-email')?.value.trim();
+  const pw = document.getElementById('login-new-password')?.value || '';
+  const errEl = document.getElementById('login-firstrun-error');
+  const showErr = (msg) => { if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } };
+  if (errEl) errEl.style.display = 'none';
+  if (!company || !name || !email || !pw) { showErr('Fill in all fields'); return; }
+  if (pw.length < 4) { showErr('Password must be at least 4 characters'); return; }
+  const hash = await sha256Hex(pw);
+  const user = { name, position: 'Admin', email, mobile: '', role: 'manager', password: hash };
+  if (!state.users) state.users = [];
+  state.users.push(user);
+  // All accounts made from here share this state, so they belong to one company —
+  // the same JSONBin cloud sync (Settings) is what lets teammates on other
+  // devices see this same company's users/data instead of starting a new one.
+  state.company = { ...(state.company || {}), name: company };
+  state.barName = company;
+  const hbn = document.getElementById('header-bar-name'); if (hbn) hbn.textContent = company;
+  loginAs(user, true);
+  saveAndSync();
+  renderUsersList();
+  toast(`✓ ${company} account created — welcome, ${name}`);
+}
+
+// Re-check login after a cloud pull merges in remote users (e.g. a teammate's
+// device already had a jsonbinId/Key configured before anyone logged in here)
+function refreshAuthAfterSync() {
+  if (currentUser) return;
+  let session = null;
+  try { session = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch (e) {}
+  if (session?.email) {
+    const u = findUserByEmail(session.email);
+    if (u) { loginAs(u, false); return; }
+  }
+  renderLoginScreen();
+}
+
+function logout() {
+  if (!confirm('Log out?')) return;
+  currentUser = null;
+  try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+  const screen = document.getElementById('login-screen');
+  if (screen) screen.classList.remove('hidden');
+  renderLoginScreen();
+  const emailEl = document.getElementById('login-email'); if (emailEl) emailEl.value = '';
+  const pwEl = document.getElementById('login-password'); if (pwEl) pwEl.value = '';
+}
+
+// ═══════════════════════════════════════════════════════
 // CLOUD SYNC state — declared before INIT below, since load()/save() run
 // during init and reference these; a `let` referenced before its declaration
 // line runs throws (temporal dead zone), so this block must come first.
@@ -4773,6 +5016,7 @@ const _initCd = document.getElementById('currency-display'); if(_initCd) _initCd
 const _hbn3=document.getElementById('header-bar-name'); if(_hbn3) _hbn3.textContent=state.barName;
 if (state.invUsername) { const el=document.getElementById('inv-username'); if(el) el.value=state.invUsername; }
 if (state.recvUsername) { const el=document.getElementById('recv-username'); if(el) el.value=state.recvUsername; }
+initAuthGate();
 renderDashboard();
 renderIngredients();
 renderInventory();
@@ -4910,6 +5154,7 @@ async function cloudPoll() {
       try { localStorage.setItem('barmanager_v1', JSON.stringify(state)); } catch(e) {}
       if (JSON.stringify(state) !== before) {
         renderAll();
+        refreshAuthAfterSync();
         showSyncBanner('☁ Updated from another device');
         setSyncStatus('☁ Synced ' + new Date().toLocaleTimeString(), 'var(--success)');
         setTimeout(showLastSynced, 3000);
@@ -5030,6 +5275,7 @@ async function cloudPull(silent=false) {
       applyIngredientSync(pulled);
       try { localStorage.setItem('barmanager_v1', JSON.stringify(state)); } catch(e) {}
       renderAll();
+      refreshAuthAfterSync();
       recordSynced();
       showSyncBanner('☁ Synced from cloud');
       setSyncStatus('☁ Pulled ' + new Date().toLocaleTimeString(), 'var(--success)');

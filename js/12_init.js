@@ -33,6 +33,7 @@ const _initCd = document.getElementById('currency-display'); if(_initCd) _initCd
 const _hbn3=document.getElementById('header-bar-name'); if(_hbn3) _hbn3.textContent=state.barName;
 if (state.invUsername) { const el=document.getElementById('inv-username'); if(el) el.value=state.invUsername; }
 if (state.recvUsername) { const el=document.getElementById('recv-username'); if(el) el.value=state.recvUsername; }
+initAuthGate();
 renderDashboard();
 renderIngredients();
 renderInventory();
@@ -170,6 +171,7 @@ async function cloudPoll() {
       try { localStorage.setItem('barmanager_v1', JSON.stringify(state)); } catch(e) {}
       if (JSON.stringify(state) !== before) {
         renderAll();
+        refreshAuthAfterSync();
         showSyncBanner('☁ Updated from another device');
         setSyncStatus('☁ Synced ' + new Date().toLocaleTimeString(), 'var(--success)');
         setTimeout(showLastSynced, 3000);
@@ -290,6 +292,7 @@ async function cloudPull(silent=false) {
       applyIngredientSync(pulled);
       try { localStorage.setItem('barmanager_v1', JSON.stringify(state)); } catch(e) {}
       renderAll();
+      refreshAuthAfterSync();
       recordSynced();
       showSyncBanner('☁ Synced from cloud');
       setSyncStatus('☁ Pulled ' + new Date().toLocaleTimeString(), 'var(--success)');

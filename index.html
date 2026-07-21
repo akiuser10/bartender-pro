@@ -26,6 +26,37 @@
 </head>
 <body>
 
+<!-- LOGIN GATE -->
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <div class="login-brand"><img src="assets/header-icon.png" alt=""> Bartender Pro</div>
+
+    <div id="login-form-wrap">
+      <div class="input-group">
+        <label class="input-label">Email</label>
+        <input type="email" id="login-email" placeholder="you@bar.com" autocomplete="username">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')attemptLogin()">
+      </div>
+      <div id="login-error" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none"></div>
+      <button class="btn btn-gold" style="width:100%" onclick="attemptLogin()"><i class="fa-solid fa-right-to-bracket"></i> Log In</button>
+    </div>
+
+    <div id="login-firstrun-wrap" style="display:none">
+      <div style="font-size:12px;color:var(--smoke);margin-bottom:12px">No team members yet — create the first account. This person will be the first Manager.</div>
+      <div class="input-group"><label class="input-label">Company / Bar Name</label><input type="text" id="login-new-company" placeholder="e.g. Zuma Dubai"></div>
+      <div class="input-group"><label class="input-label">Full Name</label><input type="text" id="login-new-name"></div>
+      <div class="input-group"><label class="input-label">Email</label><input type="email" id="login-new-email" autocomplete="username"></div>
+      <div class="input-group"><label class="input-label">Password</label><input type="password" id="login-new-password" autocomplete="new-password"></div>
+      <div id="login-firstrun-error" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none"></div>
+      <button class="btn btn-gold" style="width:100%" onclick="createFirstAccount()"><i class="fa-solid fa-user-plus"></i> Create Account & Log In</button>
+      <div style="font-size:11px;color:var(--smoke);margin-top:12px;text-align:center">Joining an existing team? Ask a manager to add you from Settings → Team Members on their device, or to share this company's Cloud Sync Bin ID/Key with you first.</div>
+    </div>
+  </div>
+</div>
+
 <!-- HEADER -->
 <header id="app-header">
   <div class="header-brand"><img src="assets/header-icon.png" alt=""> Bartender Pro</div>
@@ -35,6 +66,8 @@
     <span id="sync-status" style="font-size:11px;color:var(--smoke)"></span>
     <span class="bar-name-display" id="header-bar-name">My Bar</span>
     <span id="currency-display" style="font-size:12px;color:var(--gold);font-weight:600;padding:4px 8px;background:rgba(201,168,76,0.1);border-radius:var(--radius-sm);border:1px solid rgba(201,168,76,0.2);cursor:pointer" onclick="showScreen('settings',document.querySelector('[onclick*=settings]'))"></span>
+    <span id="current-user-name" style="font-size:12px;color:var(--ice-dim);cursor:pointer" title="Logged in as — click to open Settings" onclick="showScreen('settings',document.querySelector('[onclick*=settings]'))"></span>
+    <button class="btn btn-ghost btn-sm btn-icon" onclick="logout()" title="Log out"><i class="fa-solid fa-right-from-bracket"></i></button>
   </div>
 </header>
 
@@ -836,6 +869,34 @@
   </main>
 </div>
 
+<!-- TEAM MEMBER MODAL -->
+<div class="modal-overlay" id="user-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="user-modal-title"><i class="fa-solid fa-user"></i> Add Team Member</h2>
+      <button class="modal-close" onclick="closeUserModal()">×</button>
+    </div>
+    <div class="modal-body" style="padding:20px">
+      <div class="input-group"><label class="input-label">Full Name</label><input type="text" id="user-name"></div>
+      <div class="input-group"><label class="input-label">Position</label><input type="text" id="user-position" placeholder="e.g. Head Bartender"></div>
+      <div class="input-group"><label class="input-label">Email (login ID)</label><input type="email" id="user-email" autocomplete="off"></div>
+      <div class="input-group"><label class="input-label">Mobile</label><input type="text" id="user-mobile"></div>
+      <div class="input-group">
+        <label class="input-label">Role</label>
+        <select id="user-role"><option value="bartender">Bartender</option><option value="manager">Manager</option></select>
+      </div>
+      <div class="input-group">
+        <label class="input-label" id="user-password-label">Password</label>
+        <input type="password" id="user-password" autocomplete="new-password" placeholder="Set a login password">
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+        <button class="btn btn-ghost" onclick="closeUserModal()">Cancel</button>
+        <button class="btn btn-gold" onclick="saveUserModal()"><i class="fa-solid fa-check"></i> Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MOBILE NAV -->
 <nav id="mobile-nav">
   <div class="mobile-nav-items">
@@ -1106,6 +1167,7 @@
   <script src="js/09_ai_creator.js"></script>
   <script src="js/10_settings.js"></script>
   <script src="js/11_sample_data.js"></script>
+  <script src="js/17_auth.js"></script>
   <script src="js/12_init.js"></script>
   <script src="js/13_wastage.js"></script>
   <script src="js/14_homemade.js"></script>
