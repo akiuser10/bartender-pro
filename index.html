@@ -31,7 +31,12 @@
   <div class="login-card">
     <div class="login-brand"><img src="assets/header-icon.png" alt=""> Bartender Pro</div>
 
-    <div id="login-form-wrap">
+    <div id="login-choice-wrap">
+      <button class="btn btn-gold" style="width:100%;margin-bottom:10px" onclick="showLoginPanel('login')"><i class="fa-solid fa-right-to-bracket"></i> Log In</button>
+      <button class="btn btn-ghost" style="width:100%" onclick="showLoginPanel('register')"><i class="fa-solid fa-user-plus"></i> Register</button>
+    </div>
+
+    <div id="login-form-wrap" style="display:none">
       <div class="input-group">
         <label class="input-label">Email</label>
         <input type="email" id="login-email" placeholder="you@bar.com" autocomplete="username">
@@ -42,17 +47,25 @@
       </div>
       <div id="login-error" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none"></div>
       <button class="btn btn-gold" style="width:100%" onclick="attemptLogin()"><i class="fa-solid fa-right-to-bracket"></i> Log In</button>
+      <div style="text-align:center;margin-top:14px"><a href="#" onclick="showLoginPanel('choice');return false" style="color:var(--smoke);font-size:12px">← Back</a></div>
     </div>
 
-    <div id="login-firstrun-wrap" style="display:none">
-      <div style="font-size:12px;color:var(--smoke);margin-bottom:12px">No team members yet — create the first account. This person will be the first Manager.</div>
-      <div class="input-group"><label class="input-label">Company / Bar Name</label><input type="text" id="login-new-company" placeholder="e.g. Zuma Dubai"></div>
-      <div class="input-group"><label class="input-label">Full Name</label><input type="text" id="login-new-name"></div>
-      <div class="input-group"><label class="input-label">Email</label><input type="email" id="login-new-email" autocomplete="username"></div>
-      <div class="input-group"><label class="input-label">Password</label><input type="password" id="login-new-password" autocomplete="new-password"></div>
-      <div id="login-firstrun-error" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none"></div>
-      <button class="btn btn-gold" style="width:100%" onclick="createFirstAccount()"><i class="fa-solid fa-user-plus"></i> Create Account & Log In</button>
+    <div id="login-register-wrap" style="display:none">
+      <div class="form-row">
+        <div class="input-group"><label class="input-label">First Name</label><input type="text" id="reg-first-name"></div>
+        <div class="input-group"><label class="input-label">Last Name</label><input type="text" id="reg-last-name"></div>
+      </div>
+      <div class="input-group"><label class="input-label">Company</label><input type="text" id="reg-company" placeholder="e.g. Zuma Group"></div>
+      <div class="input-group"><label class="input-label">Bar Name</label><input type="text" id="reg-bar-name" placeholder="e.g. Zuma Dubai"></div>
+      <div class="input-group"><label class="input-label">Position</label><input type="text" id="reg-position" placeholder="e.g. Head Bartender"></div>
+      <div class="input-group"><label class="input-label">Email</label><input type="email" id="reg-email" autocomplete="username"></div>
+      <div class="input-group"><label class="input-label">Mobile Number</label><input type="tel" id="reg-mobile"></div>
+      <div class="input-group"><label class="input-label">Password</label><input type="password" id="reg-password" autocomplete="new-password"></div>
+      <div class="input-group"><label class="input-label">Confirm Password</label><input type="password" id="reg-password2" autocomplete="new-password" onkeydown="if(event.key==='Enter')registerUser()"></div>
+      <div id="login-register-error" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none"></div>
+      <button class="btn btn-gold" style="width:100%" onclick="registerUser()"><i class="fa-solid fa-user-plus"></i> Create Account</button>
       <div style="font-size:11px;color:var(--smoke);margin-top:12px;text-align:center">Joining an existing team? Ask a manager to add you from Settings → Team Members on their device, or to share this company's Cloud Sync Bin ID/Key with you first.</div>
+      <div style="text-align:center;margin-top:10px"><a href="#" onclick="showLoginPanel('choice');return false" style="color:var(--smoke);font-size:12px">← Back</a></div>
     </div>
   </div>
 </div>

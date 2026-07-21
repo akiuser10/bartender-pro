@@ -1,6 +1,8 @@
 // BartenderPro — Login / auth
 // Each team member (state.users[]) has an email + hashed password. The app is
 // gated behind #login-screen until a valid session exists for this device.
+// The login screen always starts on a Register/Log In choice; Register is
+// open to anyone at any time (not just the very first user).
 // ═══════════════════════════════════════════════════
 
 const SESSION_KEY = 'bartenderpro_session';
@@ -25,15 +27,18 @@ function initAuthGate() {
     const u = findUserByEmail(session.email);
     if (u) { loginAs(u, false); return; }
   }
-  renderLoginScreen();
+  showLoginPanel('choice');
 }
 
-function renderLoginScreen() {
-  const hasUsers = (state.users || []).length > 0;
-  const loginWrap = document.getElementById('login-form-wrap');
-  const firstRunWrap = document.getElementById('login-firstrun-wrap');
-  if (loginWrap) loginWrap.style.display = hasUsers ? 'block' : 'none';
-  if (firstRunWrap) firstRunWrap.style.display = hasUsers ? 'none' : 'block';
+// panel: 'choice' | 'login' | 'register'
+function showLoginPanel(panel) {
+  const wraps = { choice:'login-choice-wrap', login:'login-form-wrap', register:'login-register-wrap' };
+  Object.entries(wraps).forEach(([key, id]) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = (key === panel) ? 'block' : 'none';
+  });
+  const loginErr = document.getElementById('login-error'); if (loginErr) loginErr.style.display = 'none';
+  const regErr = document.getElementById('login-register-error'); if (regErr) regErr.style.display = 'none';
 }
 
 function loginAs(user, persist = true) {
@@ -63,37 +68,59 @@ async function attemptLogin() {
   if (errEl) errEl.style.display = 'none';
   if (!email || !pw) { showLoginError('Enter your email and password'); return; }
   const user = findUserByEmail(email);
-  if (!user) { showLoginError('Invalid email or password'); return; }
+  if (!user) {
+    showLoginError((state.users||[]).length ? 'Invalid email or password' : 'No account yet — tap Register below');
+    return;
+  }
   const hash = await sha256Hex(pw);
   if (user.password !== hash) { showLoginError('Invalid email or password'); return; }
   loginAs(user, true);
   toast(`Welcome back, ${user.name}`);
 }
 
-async function createFirstAccount() {
-  const company = document.getElementById('login-new-company')?.value.trim();
-  const name = document.getElementById('login-new-name')?.value.trim();
-  const email = document.getElementById('login-new-email')?.value.trim();
-  const pw = document.getElementById('login-new-password')?.value || '';
-  const errEl = document.getElementById('login-firstrun-error');
+async function registerUser() {
+  const val = (id) => document.getElementById(id)?.value.trim() || '';
+  const firstName = val('reg-first-name');
+  const lastName  = val('reg-last-name');
+  const company   = val('reg-company');
+  const barName   = val('reg-bar-name');
+  const position  = val('reg-position');
+  const email     = val('reg-email');
+  const mobile    = val('reg-mobile');
+  const pw  = document.getElementById('reg-password')?.value || '';
+  const pw2 = document.getElementById('reg-password2')?.value || '';
+  const errEl = document.getElementById('login-register-error');
   const showErr = (msg) => { if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } };
   if (errEl) errEl.style.display = 'none';
-  if (!company || !name || !email || !pw) { showErr('Fill in all fields'); return; }
+  if (!firstName || !lastName || !company || !barName || !position || !email || !mobile || !pw || !pw2) {
+    showErr('Fill in all fields'); return;
+  }
   if (pw.length < 4) { showErr('Password must be at least 4 characters'); return; }
+  if (pw !== pw2) { showErr('Passwords do not match'); return; }
+  if (findUserByEmail(email)) { showErr('An account with this email already exists — log in instead'); return; }
+
   const hash = await sha256Hex(pw);
-  const user = { name, position: 'Admin', email, mobile: '', role: 'manager', password: hash };
+  const isFirstUser = !(state.users||[]).length;
+  const name = `${firstName} ${lastName}`.trim();
+  const user = { name, firstName, lastName, position, email, mobile, role: isFirstUser ? 'manager' : 'bartender', password: hash };
   if (!state.users) state.users = [];
   state.users.push(user);
   // All accounts made from here share this state, so they belong to one company —
   // the same JSONBin cloud sync (Settings) is what lets teammates on other
   // devices see this same company's users/data instead of starting a new one.
-  state.company = { ...(state.company || {}), name: company };
-  state.barName = company;
-  const hbn = document.getElementById('header-bar-name'); if (hbn) hbn.textContent = company;
+  // Only the first registrant on a fresh install actually sets the company/bar
+  // name; later registrants join whatever is already configured.
+  if (!state.company?.name) {
+    state.company = { ...(state.company || {}), name: company };
+  }
+  if (!state.barName || state.barName === 'My Bar') {
+    state.barName = barName;
+    const hbn = document.getElementById('header-bar-name'); if (hbn) hbn.textContent = barName;
+  }
   loginAs(user, true);
   saveAndSync();
   renderUsersList();
-  toast(`✓ ${company} account created — welcome, ${name}`);
+  toast(`✓ Account created — welcome, ${name}`);
 }
 
 // Re-check login after a cloud pull merges in remote users (e.g. a teammate's
@@ -106,7 +133,6 @@ function refreshAuthAfterSync() {
     const u = findUserByEmail(session.email);
     if (u) { loginAs(u, false); return; }
   }
-  renderLoginScreen();
 }
 
 function logout() {
@@ -115,7 +141,7 @@ function logout() {
   try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
   const screen = document.getElementById('login-screen');
   if (screen) screen.classList.remove('hidden');
-  renderLoginScreen();
+  showLoginPanel('choice');
   const emailEl = document.getElementById('login-email'); if (emailEl) emailEl.value = '';
   const pwEl = document.getElementById('login-password'); if (pwEl) pwEl.value = '';
 }

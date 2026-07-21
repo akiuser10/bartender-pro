@@ -599,7 +599,7 @@ tr.ing-selected { background: rgba(201,168,76,0.05); }
 .login-screen.hidden { display: none; }
 .login-card {
   background: var(--surface); border-radius: var(--radius); padding: 32px;
-  width: 100%; max-width: 340px; border: 1px solid rgba(255,255,255,0.08);
+  width: 100%; max-width: 380px; border: 1px solid rgba(255,255,255,0.08); max-height: 92vh; overflow-y: auto;
 }
 .login-brand {
   display: flex; align-items: center; gap: 10px; font-size: 18px; color: var(--gold);
@@ -615,7 +615,12 @@ tr.ing-selected { background: rgba(201,168,76,0.05); }
   <div class="login-card">
     <div class="login-brand"><img src="assets/header-icon.png" alt=""> Bartender Pro</div>
 
-    <div id="login-form-wrap">
+    <div id="login-choice-wrap">
+      <button class="btn btn-gold" style="width:100%;margin-bottom:10px" onclick="showLoginPanel('login')"><i class="fa-solid fa-right-to-bracket"></i> Log In</button>
+      <button class="btn btn-ghost" style="width:100%" onclick="showLoginPanel('register')"><i class="fa-solid fa-user-plus"></i> Register</button>
+    </div>
+
+    <div id="login-form-wrap" style="display:none">
       <div class="input-group">
         <label class="input-label">Email</label>
         <input type="email" id="login-email" placeholder="you@bar.com" autocomplete="username">
@@ -626,17 +631,25 @@ tr.ing-selected { background: rgba(201,168,76,0.05); }
       </div>
       <div id="login-error" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none"></div>
       <button class="btn btn-gold" style="width:100%" onclick="attemptLogin()"><i class="fa-solid fa-right-to-bracket"></i> Log In</button>
+      <div style="text-align:center;margin-top:14px"><a href="#" onclick="showLoginPanel('choice');return false" style="color:var(--smoke);font-size:12px">← Back</a></div>
     </div>
 
-    <div id="login-firstrun-wrap" style="display:none">
-      <div style="font-size:12px;color:var(--smoke);margin-bottom:12px">No team members yet — create the first account. This person will be the first Manager.</div>
-      <div class="input-group"><label class="input-label">Company / Bar Name</label><input type="text" id="login-new-company" placeholder="e.g. Zuma Dubai"></div>
-      <div class="input-group"><label class="input-label">Full Name</label><input type="text" id="login-new-name"></div>
-      <div class="input-group"><label class="input-label">Email</label><input type="email" id="login-new-email" autocomplete="username"></div>
-      <div class="input-group"><label class="input-label">Password</label><input type="password" id="login-new-password" autocomplete="new-password"></div>
-      <div id="login-firstrun-error" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none"></div>
-      <button class="btn btn-gold" style="width:100%" onclick="createFirstAccount()"><i class="fa-solid fa-user-plus"></i> Create Account & Log In</button>
+    <div id="login-register-wrap" style="display:none">
+      <div class="form-row">
+        <div class="input-group"><label class="input-label">First Name</label><input type="text" id="reg-first-name"></div>
+        <div class="input-group"><label class="input-label">Last Name</label><input type="text" id="reg-last-name"></div>
+      </div>
+      <div class="input-group"><label class="input-label">Company</label><input type="text" id="reg-company" placeholder="e.g. Zuma Group"></div>
+      <div class="input-group"><label class="input-label">Bar Name</label><input type="text" id="reg-bar-name" placeholder="e.g. Zuma Dubai"></div>
+      <div class="input-group"><label class="input-label">Position</label><input type="text" id="reg-position" placeholder="e.g. Head Bartender"></div>
+      <div class="input-group"><label class="input-label">Email</label><input type="email" id="reg-email" autocomplete="username"></div>
+      <div class="input-group"><label class="input-label">Mobile Number</label><input type="tel" id="reg-mobile"></div>
+      <div class="input-group"><label class="input-label">Password</label><input type="password" id="reg-password" autocomplete="new-password"></div>
+      <div class="input-group"><label class="input-label">Confirm Password</label><input type="password" id="reg-password2" autocomplete="new-password" onkeydown="if(event.key==='Enter')registerUser()"></div>
+      <div id="login-register-error" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none"></div>
+      <button class="btn btn-gold" style="width:100%" onclick="registerUser()"><i class="fa-solid fa-user-plus"></i> Create Account</button>
       <div style="font-size:11px;color:var(--smoke);margin-top:12px;text-align:center">Joining an existing team? Ask a manager to add you from Settings → Team Members on their device, or to share this company's Cloud Sync Bin ID/Key with you first.</div>
+      <div style="text-align:center;margin-top:10px"><a href="#" onclick="showLoginPanel('choice');return false" style="color:var(--smoke);font-size:12px">← Back</a></div>
     </div>
   </div>
 </div>
@@ -4890,15 +4903,18 @@ function initAuthGate() {
     const u = findUserByEmail(session.email);
     if (u) { loginAs(u, false); return; }
   }
-  renderLoginScreen();
+  showLoginPanel('choice');
 }
 
-function renderLoginScreen() {
-  const hasUsers = (state.users || []).length > 0;
-  const loginWrap = document.getElementById('login-form-wrap');
-  const firstRunWrap = document.getElementById('login-firstrun-wrap');
-  if (loginWrap) loginWrap.style.display = hasUsers ? 'block' : 'none';
-  if (firstRunWrap) firstRunWrap.style.display = hasUsers ? 'none' : 'block';
+// panel: 'choice' | 'login' | 'register'
+function showLoginPanel(panel) {
+  const wraps = { choice:'login-choice-wrap', login:'login-form-wrap', register:'login-register-wrap' };
+  Object.entries(wraps).forEach(([key, id]) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = (key === panel) ? 'block' : 'none';
+  });
+  const loginErr = document.getElementById('login-error'); if (loginErr) loginErr.style.display = 'none';
+  const regErr = document.getElementById('login-register-error'); if (regErr) regErr.style.display = 'none';
 }
 
 function loginAs(user, persist = true) {
@@ -4928,37 +4944,59 @@ async function attemptLogin() {
   if (errEl) errEl.style.display = 'none';
   if (!email || !pw) { showLoginError('Enter your email and password'); return; }
   const user = findUserByEmail(email);
-  if (!user) { showLoginError('Invalid email or password'); return; }
+  if (!user) {
+    showLoginError((state.users||[]).length ? 'Invalid email or password' : 'No account yet — tap Register below');
+    return;
+  }
   const hash = await sha256Hex(pw);
   if (user.password !== hash) { showLoginError('Invalid email or password'); return; }
   loginAs(user, true);
   toast(`Welcome back, ${user.name}`);
 }
 
-async function createFirstAccount() {
-  const company = document.getElementById('login-new-company')?.value.trim();
-  const name = document.getElementById('login-new-name')?.value.trim();
-  const email = document.getElementById('login-new-email')?.value.trim();
-  const pw = document.getElementById('login-new-password')?.value || '';
-  const errEl = document.getElementById('login-firstrun-error');
+async function registerUser() {
+  const val = (id) => document.getElementById(id)?.value.trim() || '';
+  const firstName = val('reg-first-name');
+  const lastName  = val('reg-last-name');
+  const company   = val('reg-company');
+  const barName   = val('reg-bar-name');
+  const position  = val('reg-position');
+  const email     = val('reg-email');
+  const mobile    = val('reg-mobile');
+  const pw  = document.getElementById('reg-password')?.value || '';
+  const pw2 = document.getElementById('reg-password2')?.value || '';
+  const errEl = document.getElementById('login-register-error');
   const showErr = (msg) => { if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } };
   if (errEl) errEl.style.display = 'none';
-  if (!company || !name || !email || !pw) { showErr('Fill in all fields'); return; }
+  if (!firstName || !lastName || !company || !barName || !position || !email || !mobile || !pw || !pw2) {
+    showErr('Fill in all fields'); return;
+  }
   if (pw.length < 4) { showErr('Password must be at least 4 characters'); return; }
+  if (pw !== pw2) { showErr('Passwords do not match'); return; }
+  if (findUserByEmail(email)) { showErr('An account with this email already exists — log in instead'); return; }
+
   const hash = await sha256Hex(pw);
-  const user = { name, position: 'Admin', email, mobile: '', role: 'manager', password: hash };
+  const isFirstUser = !(state.users||[]).length;
+  const name = `${firstName} ${lastName}`.trim();
+  const user = { name, firstName, lastName, position, email, mobile, role: isFirstUser ? 'manager' : 'bartender', password: hash };
   if (!state.users) state.users = [];
   state.users.push(user);
   // All accounts made from here share this state, so they belong to one company —
   // the same JSONBin cloud sync (Settings) is what lets teammates on other
   // devices see this same company's users/data instead of starting a new one.
-  state.company = { ...(state.company || {}), name: company };
-  state.barName = company;
-  const hbn = document.getElementById('header-bar-name'); if (hbn) hbn.textContent = company;
+  // Only the first registrant on a fresh install actually sets the company/bar
+  // name; later registrants join whatever is already configured.
+  if (!state.company?.name) {
+    state.company = { ...(state.company || {}), name: company };
+  }
+  if (!state.barName || state.barName === 'My Bar') {
+    state.barName = barName;
+    const hbn = document.getElementById('header-bar-name'); if (hbn) hbn.textContent = barName;
+  }
   loginAs(user, true);
   saveAndSync();
   renderUsersList();
-  toast(`✓ ${company} account created — welcome, ${name}`);
+  toast(`✓ Account created — welcome, ${name}`);
 }
 
 // Re-check login after a cloud pull merges in remote users (e.g. a teammate's
@@ -4971,7 +5009,6 @@ function refreshAuthAfterSync() {
     const u = findUserByEmail(session.email);
     if (u) { loginAs(u, false); return; }
   }
-  renderLoginScreen();
 }
 
 function logout() {
@@ -4980,7 +5017,7 @@ function logout() {
   try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
   const screen = document.getElementById('login-screen');
   if (screen) screen.classList.remove('hidden');
-  renderLoginScreen();
+  showLoginPanel('choice');
   const emailEl = document.getElementById('login-email'); if (emailEl) emailEl.value = '';
   const pwEl = document.getElementById('login-password'); if (pwEl) pwEl.value = '';
 }
