@@ -630,6 +630,7 @@ tr.ing-selected { background: rgba(201,168,76,0.05); }
     <div id="login-choice-wrap">
       <button class="btn btn-gold" style="width:100%;margin-bottom:10px" onclick="showLoginPanel('login')"><i class="fa-solid fa-right-to-bracket"></i> Log In</button>
       <button class="btn btn-ghost" style="width:100%" onclick="showLoginPanel('register')"><i class="fa-solid fa-user-plus"></i> Register</button>
+      <div style="text-align:center;margin-top:14px"><a href="#" onclick="showLoginPanel('sync');return false" style="color:var(--smoke);font-size:12px">New device — joining an existing team?</a></div>
     </div>
 
     <div id="login-form-wrap" style="display:none">
@@ -644,7 +645,17 @@ tr.ing-selected { background: rgba(201,168,76,0.05); }
       <div id="login-error" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none"></div>
       <button class="btn btn-gold" style="width:100%" onclick="attemptLogin()"><i class="fa-solid fa-right-to-bracket"></i> Log In</button>
       <div style="text-align:center;margin-top:14px"><a href="#" onclick="showLoginPanel('forgot');return false" style="color:var(--smoke);font-size:12px">Forgot password?</a></div>
+      <div style="text-align:center;margin-top:8px"><a href="#" onclick="showLoginPanel('sync');return false" style="color:var(--smoke);font-size:12px">Account not found on this device? Sync it first</a></div>
       <div style="text-align:center;margin-top:8px"><a href="#" onclick="showLoginPanel('choice');return false" style="color:var(--smoke);font-size:12px">← Back</a></div>
+    </div>
+
+    <div id="login-sync-wrap" style="display:none">
+      <div style="font-size:12px;color:var(--smoke);margin-bottom:12px">This is a new browser/device, so it has none of your team's data yet. Ask a manager for this company's Cloud Sync Bin ID and Master Key (Settings → Cloud Sync on their device), enter them below to pull your team's data here, then log in normally.</div>
+      <div class="input-group"><label class="input-label">Bin ID</label><input type="text" id="login-sync-binid" placeholder="e.g. 64a3b2c1d0e9f8a7..."></div>
+      <div class="input-group"><label class="input-label">Master Key</label><input type="password" id="login-sync-binkey" placeholder="$2a$10$..." onkeydown="if(event.key==='Enter')syncThenShowLogin()"></div>
+      <div id="login-sync-error" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none"></div>
+      <button class="btn btn-gold" style="width:100%" id="login-sync-btn" onclick="syncThenShowLogin()"><i class="fa-solid fa-cloud-arrow-down"></i> Pull Team Data</button>
+      <div style="text-align:center;margin-top:10px"><a href="#" onclick="showLoginPanel('choice');return false" style="color:var(--smoke);font-size:12px">← Back</a></div>
     </div>
 
     <div id="login-forgot-wrap" style="display:none">
@@ -5066,9 +5077,9 @@ function initAuthGate() {
   showLoginPanel('choice');
 }
 
-// panel: 'choice' | 'login' | 'register' | 'forgot'
+// panel: 'choice' | 'login' | 'register' | 'forgot' | 'sync'
 function showLoginPanel(panel) {
-  const wraps = { choice:'login-choice-wrap', login:'login-form-wrap', register:'login-register-wrap', forgot:'login-forgot-wrap' };
+  const wraps = { choice:'login-choice-wrap', login:'login-form-wrap', register:'login-register-wrap', forgot:'login-forgot-wrap', sync:'login-sync-wrap' };
   Object.entries(wraps).forEach(([key, id]) => {
     const el = document.getElementById(id);
     if (el) el.style.display = (key === panel) ? 'block' : 'none';
@@ -5076,7 +5087,41 @@ function showLoginPanel(panel) {
   const loginErr = document.getElementById('login-error'); if (loginErr) loginErr.style.display = 'none';
   const regErr = document.getElementById('login-register-error'); if (regErr) regErr.style.display = 'none';
   const forgotErr = document.getElementById('login-forgot-error'); if (forgotErr) forgotErr.style.display = 'none';
+  const syncErr = document.getElementById('login-sync-error'); if (syncErr) syncErr.style.display = 'none';
   if (panel === 'register') applyRegisterCompanyLock();
+}
+
+// "Joining an existing team?" — this is a brand-new browser/device, so localStorage
+// has no state.users at all. There's no way to reach Settings (where Bin ID/Key are
+// normally entered) without already being logged in, so this lets a device pull the
+// team's cloud data BEFORE login, using the Bin ID/Key a manager shares with them.
+async function syncThenShowLogin() {
+  const binId  = document.getElementById('login-sync-binid')?.value.trim().replace(/\s/g,'') || '';
+  const binKey = document.getElementById('login-sync-binkey')?.value.trim().replace(/\s/g,'') || '';
+  const errEl = document.getElementById('login-sync-error');
+  const showErr = (msg) => { if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } };
+  if (errEl) errEl.style.display = 'none';
+  if (!binId || !binKey) { showErr('Enter both the Bin ID and Master Key'); return; }
+
+  state.jsonbinId = binId;
+  state.jsonbinKey = binKey;
+  const btn = document.getElementById('login-sync-btn');
+  if (btn) btn.disabled = true;
+  await cloudPull();
+  if (btn) btn.disabled = false;
+
+  if (!state.jsonbinId || !state.jsonbinKey || !_cloudSyncReady) {
+    showErr("Couldn't reach that Bin — check the ID/Key and your connection");
+    return;
+  }
+  if (!(state.users||[]).length) {
+    showErr('Pulled data but found no team members yet — double-check the Bin ID/Key with your manager');
+    return;
+  }
+  startPolling();
+  save();
+  toast('✓ Synced — log in with your account below');
+  showLoginPanel('login');
 }
 
 // This data store belongs to one company at a time — once it has one, lock

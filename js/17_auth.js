@@ -30,9 +30,9 @@ function initAuthGate() {
   showLoginPanel('choice');
 }
 
-// panel: 'choice' | 'login' | 'register' | 'forgot'
+// panel: 'choice' | 'login' | 'register' | 'forgot' | 'sync'
 function showLoginPanel(panel) {
-  const wraps = { choice:'login-choice-wrap', login:'login-form-wrap', register:'login-register-wrap', forgot:'login-forgot-wrap' };
+  const wraps = { choice:'login-choice-wrap', login:'login-form-wrap', register:'login-register-wrap', forgot:'login-forgot-wrap', sync:'login-sync-wrap' };
   Object.entries(wraps).forEach(([key, id]) => {
     const el = document.getElementById(id);
     if (el) el.style.display = (key === panel) ? 'block' : 'none';
@@ -40,7 +40,41 @@ function showLoginPanel(panel) {
   const loginErr = document.getElementById('login-error'); if (loginErr) loginErr.style.display = 'none';
   const regErr = document.getElementById('login-register-error'); if (regErr) regErr.style.display = 'none';
   const forgotErr = document.getElementById('login-forgot-error'); if (forgotErr) forgotErr.style.display = 'none';
+  const syncErr = document.getElementById('login-sync-error'); if (syncErr) syncErr.style.display = 'none';
   if (panel === 'register') applyRegisterCompanyLock();
+}
+
+// "Joining an existing team?" — this is a brand-new browser/device, so localStorage
+// has no state.users at all. There's no way to reach Settings (where Bin ID/Key are
+// normally entered) without already being logged in, so this lets a device pull the
+// team's cloud data BEFORE login, using the Bin ID/Key a manager shares with them.
+async function syncThenShowLogin() {
+  const binId  = document.getElementById('login-sync-binid')?.value.trim().replace(/\s/g,'') || '';
+  const binKey = document.getElementById('login-sync-binkey')?.value.trim().replace(/\s/g,'') || '';
+  const errEl = document.getElementById('login-sync-error');
+  const showErr = (msg) => { if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } };
+  if (errEl) errEl.style.display = 'none';
+  if (!binId || !binKey) { showErr('Enter both the Bin ID and Master Key'); return; }
+
+  state.jsonbinId = binId;
+  state.jsonbinKey = binKey;
+  const btn = document.getElementById('login-sync-btn');
+  if (btn) btn.disabled = true;
+  await cloudPull();
+  if (btn) btn.disabled = false;
+
+  if (!state.jsonbinId || !state.jsonbinKey || !_cloudSyncReady) {
+    showErr("Couldn't reach that Bin — check the ID/Key and your connection");
+    return;
+  }
+  if (!(state.users||[]).length) {
+    showErr('Pulled data but found no team members yet — double-check the Bin ID/Key with your manager');
+    return;
+  }
+  startPolling();
+  save();
+  toast('✓ Synced — log in with your account below');
+  showLoginPanel('login');
 }
 
 // This data store belongs to one company at a time — once it has one, lock
