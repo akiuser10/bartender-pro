@@ -132,13 +132,24 @@ function initCloudSync() {
     startPolling();
   }
 
-  // Mobile Safari suspends JS timers while backgrounded, so the 30s poll
-  // doesn't fire while the app is closed/switched away from — without this,
-  // reopening the app can silently show stale data for up to 30s, and any
-  // edit made against that stale state risks overwriting a teammate's newer
-  // push. Pulling immediately on regaining visibility closes that window.
+  // Mobile Safari suspends JS timers while backgrounded, which breaks sync
+  // two ways:
+  //  1. Editing a quantity field (Inventory/Batch/Recipes all save() on every
+  //     keystroke) keeps resetting schedulePush()'s 5s debounce timer. Type,
+  //     then immediately switch apps/lock the screen — the timer never
+  //     finishes and the edit is silently lost, never even attempted.
+  //  2. The 30s poll doesn't fire while backgrounded, so reopening the app
+  //     can show stale data for longer than 30s.
+  // Flushing any pending push on hidden, and pulling fresh on visible, closes
+  // both gaps.
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && state.jsonbinId && state.jsonbinKey) {
+    if (document.visibilityState === 'hidden') {
+      if (_syncDebounceTimer) {
+        clearTimeout(_syncDebounceTimer);
+        _syncDebounceTimer = null;
+        cloudPush();
+      }
+    } else if (document.visibilityState === 'visible' && state.jsonbinId && state.jsonbinKey) {
       cloudPull(true);
       if (!_pollTimer) startPolling();
     }
