@@ -15,7 +15,11 @@ function getOrderItems() {
     const isAnyLiq = isAnyLiquidCat(ing.cat);
     const unitMl   = isAnyLiq ? ing.unitSize : 1; // food par is already in grams
     const minMl    = (ing.minPar||0) * unitMl;
-    return (ing.minPar||0) > 0 && totalMl < minMl;
+    const belowPar = (ing.minPar||0) > 0 && totalMl < minMl;
+    // Out-of-stock/manually-flagged items need ordering too, even with no par level
+    // configured — same criteria the Dashboard's "Not Available Items" list uses.
+    const outOfStock = ing.inInventory && (totalMl <= 0 || ing.notAvailable);
+    return belowPar || outOfStock;
   }).map(ing => {
     const entry    = getInvEntry(ing.id);
     const isAnyLiq = isAnyLiquidCat(ing.cat);
@@ -28,9 +32,13 @@ function getOrderItems() {
     // How many units to order:
     // liquid → ceil(gap ml / ml-per-unit) = number of bottles/kegs
     // food   → gap is already in grams; order in grams
-    const btlsNeeded = isAnyLiq
+    let btlsNeeded = isAnyLiq
       ? (unitMl > 0 ? Math.ceil(gapMl / unitMl) : 0)
       : Math.round(gapMl); // grams
+    // No par level configured (maxPar 0) means the gap calc above comes out to 0 —
+    // still suggest at least 1 unit for an out-of-stock item so it's actually
+    // orderable by default instead of silently sitting at a 0 quantity.
+    if (btlsNeeded <= 0 && totalMl <= 0) btlsNeeded = 1;
     const saved = state.orders?.[ing.id];
     return {
       ing, totalMl, minMl, maxMl, gapMl, unitMl,
