@@ -97,7 +97,8 @@ function renderDashboard() {
   const unavailEl = document.getElementById('unavailable-list');
   if (unavailEl) {
     const unavailIngs = state.ingredients.filter(i => i.notAvailable);
-    if (!unavailIngs.length) {
+    const unavailHM   = (state.homeMade||[]).filter(h => h.notAvailable);
+    if (!unavailIngs.length && !unavailHM.length) {
       unavailEl.innerHTML = `<div style="font-size:12px;color:var(--smoke);padding:4px 0">All ingredients available</div>`;
     } else {
       // Find recipes affected by each unavailable ingredient
@@ -109,7 +110,7 @@ function renderDashboard() {
         affectedRecipes[ing.id] = recipes;
       });
 
-      unavailEl.innerHTML = unavailIngs.map(ing => {
+      const ingRows = unavailIngs.map(ing => {
         const affected = affectedRecipes[ing.id]||[];
         return `<div class="alert-item" style="flex-direction:column;align-items:flex-start;gap:6px">
           <div style="display:flex;align-items:center;gap:8px;width:100%">
@@ -128,7 +129,20 @@ function renderDashboard() {
             </button>
           </div>` : ''}
         </div>`;
-      }).join('');
+      });
+
+      const hmRows = unavailHM.map(hm => `<div class="alert-item" style="flex-direction:column;align-items:flex-start;gap:6px">
+          <div style="display:flex;align-items:center;gap:8px;width:100%">
+            <i class="fa-solid fa-ban" style="color:var(--danger);flex-shrink:0"></i>
+            <div style="flex:1">
+              <div class="alert-item-name" style="color:var(--danger)">${escHtml(hm.name)} <span style="font-size:10px;color:var(--smoke)">(home-made)</span></div>
+              <div class="alert-item-detail">Counted at 0 in the last stock take</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" style="font-size:10px" onclick="toggleHMAvailable('${hm.id}')">Mark Available</button>
+          </div>
+        </div>`);
+
+      unavailEl.innerHTML = ingRows.join('') + hmRows.join('');
     }
   }
 

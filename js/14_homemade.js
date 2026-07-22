@@ -201,3 +201,12 @@ function deleteHM(id) {
   state.homeMade = (state.homeMade||[]).filter(x=>x.id!==id);
   saveAndSync(); renderHomeMade(); toast('Deleted — syncing…');
 }
+
+function toggleHMAvailable(id) {
+  const hm = (state.homeMade||[]).find(x=>x.id===id);
+  if (!hm) return;
+  hm.notAvailable = !hm.notAvailable;
+  save();
+  renderDashboard();
+  toast(hm.notAvailable ? `⛔ ${hm.name} marked as NOT AVAILABLE` : `✓ ${hm.name} marked as available`);
+}

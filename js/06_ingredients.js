@@ -691,39 +691,43 @@ function renderInventory() {
 
       // 3 simple inputs — labels above, values below
       const isSealedOnly = isSealedOnlyCat(ing.cat);
+      // Inputs stay blank until this item is actually re-counted this session (entry.touched) —
+      // a fresh stock take starts from an empty sheet instead of pre-filled stale numbers.
+      // The last known totals (used everywhere else) live on untouched, so nothing is lost.
+      const showEntered = !!entry.touched;
       const inputsHtml = isFood ? `
           <div class="inv-input-col">
             <span class="inv-input-label">Qty</span>
             <input class="inv-input" type="number" min="0" step="1" placeholder="0"
-              value="${openGrams||''}"
+              value="${showEntered ? (openGrams||'') : ''}"
               oninput="updateInvField('${ing.id}','openGrams',this.value)">
             <span class="inv-input-unit">${invUnit}</span>
           </div>` : isSealedOnly ? `
           <div class="inv-input-col">
             <span class="inv-input-label">Sealed</span>
             <input class="inv-input" type="number" min="0" step="1" placeholder="0"
-              value="${sealedBtls||''}"
+              value="${showEntered ? (sealedBtls||'') : ''}"
               oninput="updateInvField('${ing.id}','sealedBtls',this.value)">
             <span class="inv-input-unit">btl</span>
           </div>` : `
           <div class="inv-input-col">
             <span class="inv-input-label">Sealed</span>
             <input class="inv-input" type="number" min="0" step="1" placeholder="0"
-              value="${sealedBtls||''}"
+              value="${showEntered ? (sealedBtls||'') : ''}"
               oninput="updateInvField('${ing.id}','sealedBtls',this.value)">
             <span class="inv-input-unit">${invUnit}</span>
           </div>
           <div class="inv-input-col">
             <span class="inv-input-label">Open</span>
             <input class="inv-input" type="number" min="1" step="1" placeholder="1"
-              value="${openBtls||1}"
+              value="${showEntered ? (openBtls||1) : ''}"
               oninput="updateInvField('${ing.id}','openBtls',this.value)">
             <span class="inv-input-unit">${invUnit}</span>
           </div>
           <div class="inv-input-col">
             <span class="inv-input-label">Gross wt</span>
             <input class="inv-input" type="number" min="0" step="1" placeholder="0"
-              value="${openGrams||''}"
+              value="${showEntered ? (openGrams||'') : ''}"
               oninput="updateInvField('${ing.id}','openGrams',this.value)">
             <span class="inv-input-unit">g</span>
           </div>`;
@@ -855,32 +859,34 @@ function renderInventory() {
           : '⚠ set tare in Home-Made tab')
       : '';
 
+    // Same "blank until re-counted this session" behaviour as the ingredient rows above.
+    const hmShowEntered = !!inv.touched;
     const inputsHtml = isAlcLiq ? `
       <div class="inv-input-col">
         <span class="inv-input-label">Sealed</span>
         <input class="inv-input" type="number" min="0" step="1" placeholder="0"
-          value="${inv.sealedBtls||''}"
+          value="${hmShowEntered ? (inv.sealedBtls||'') : ''}"
           oninput="updateHMInvField('${h.id}','sealedBtls',this.value)">
         <span class="inv-input-unit">btl</span>
       </div>
       <div class="inv-input-col">
         <span class="inv-input-label">Open</span>
         <input class="inv-input" type="number" min="1" step="1" placeholder="1"
-          value="${inv.openBtls||1}"
+          value="${hmShowEntered ? (inv.openBtls||1) : ''}"
           oninput="updateHMInvField('${h.id}','openBtls',this.value)">
         <span class="inv-input-unit">btl</span>
       </div>
       <div class="inv-input-col">
         <span class="inv-input-label">Gross wt</span>
         <input class="inv-input" type="number" min="0" step="1" placeholder="0"
-          value="${inv.openGrams||''}"
+          value="${hmShowEntered ? (inv.openGrams||'') : ''}"
           oninput="updateHMInvField('${h.id}','openGrams',this.value)">
         <span class="inv-input-unit">g</span>
       </div>` : `
       <div class="inv-input-col">
         <span class="inv-input-label">In Stock</span>
         <input class="inv-input" type="number" min="0" step="0.1" placeholder="0"
-          value="${curQty||''}"
+          value="${hmShowEntered ? (curQty||'') : ''}"
           oninput="updateHMInv('${h.id}',this.value)">
         <span class="inv-input-unit">${h.yieldUnit}</span>
       </div>`;
@@ -933,6 +939,41 @@ function renderInventory() {
       </div>
     </div>`;
   }).join('');
+
+  renderStockTakeReport();
+}
+
+// Bottom-of-page stock-take summary: when the last save happened, and which
+// previously-counted items were skipped this round (so a manager can chase them down).
+function renderStockTakeReport() {
+  const el = document.getElementById('stock-take-report');
+  if (!el) return;
+  const report = state.lastStockTakeReport;
+  const headerLine = state.lastStockTakeAt
+    ? `Last stock take: <strong style="color:var(--ice)">${escHtml(state.lastStockTakeAt)}</strong>${state.lastStockTakeBy ? ` by ${escHtml(state.lastStockTakeBy)}` : ''}`
+    : `No stock take completed yet`;
+  const notCounted = report?.notCounted || [];
+
+  el.innerHTML = `
+    <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--smoke);margin-bottom:8px">
+      <i class="fa-solid fa-calendar-check"></i> ${headerLine}
+    </div>
+    ${notCounted.length ? `
+      <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--warning);margin:16px 0 8px">
+        <i class="fa-solid fa-triangle-exclamation"></i> Not counted this stock take (${notCounted.length})
+      </div>
+      <div class="alert-list">
+        ${notCounted.map(it => `
+          <div class="alert-item">
+            <i class="fa-solid fa-clock-rotate-left" style="color:var(--warning)"></i>
+            <div>
+              <div class="alert-item-name">${escHtml(it.name)} ${it.type==='homemade' ? '<span style="font-size:10px;color:var(--smoke)">(home-made)</span>' : ''}</div>
+              <div class="alert-item-detail">Last counted ${escHtml(it.lastAt||'—')}${it.lastBy ? ` by ${escHtml(it.lastBy)}` : ''}</div>
+            </div>
+          </div>`).join('')}
+      </div>
+    ` : ''}
+  `;
 }
 
 function updateInvField(id, field, val) {
@@ -945,6 +986,9 @@ function updateInvField(id, field, val) {
     if (field === 'openBtls' && state.inventory[id].openBtls < 1) state.inventory[id].openBtls = 1;
     // A genuine physical count supersedes the "received, not yet counted" flag
     state.inventory[id].pendingRecount = false;
+    // Marks this entry as actually edited this session, so Save Session can tell
+    // an explicit 0 (user counted it and it's empty) apart from a field nobody touched.
+    state.inventory[id].touched = true;
   }
 
   // stamp who measured and when (not on _refresh calls)
@@ -1009,6 +1053,7 @@ function updateHMInvField(id, field, val) {
   if (!state.hmInventory) state.hmInventory = {};
   if (!state.hmInventory[id]) state.hmInventory[id] = { sealedBtls:0, openBtls:1, openGrams:0, qty:0, measuredAt:'', measuredBy:'' };
   state.hmInventory[id][field] = parseFloat(val)||0;
+  state.hmInventory[id].touched = true;
   if (field === 'openBtls' && state.hmInventory[id].openBtls < 1) state.hmInventory[id].openBtls = 1;
 
   const username = (document.getElementById('inv-username')||{}).value?.trim() || state.invUsername || '';
@@ -1053,6 +1098,7 @@ function updateHMInv(id, val) {
   if (!state.hmInventory) state.hmInventory = {};
   if (!state.hmInventory[id]) state.hmInventory[id] = { qty:0, measuredAt:'', measuredBy:'' };
   state.hmInventory[id].qty = parseFloat(val)||0;
+  state.hmInventory[id].touched = true;
   const username = (document.getElementById('inv-username')||{}).value?.trim() || state.invUsername || '';
   if (username) state.hmInventory[id].measuredBy = username;
   state.hmInventory[id].measuredAt = new Date().toLocaleString('en-GB',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short'});
@@ -1089,8 +1135,57 @@ function updateIngPar(id, field, val) {
 function saveInventory() {
   const username = (document.getElementById('inv-username')||{}).value?.trim()||'';
   if (username) state.invUsername = username;
+  const now = new Date().toLocaleString('en-GB',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short'});
+
+  const countedThisTime = [];
+  const notCountedThisTime = [];
+
+  // Reconcile availability against what was actually counted this session:
+  // an item explicitly counted at 0 (both sealed & open/grams) goes "not available";
+  // an item counted with real stock comes back off the unavailable list, even if it
+  // was flagged before. Untouched fields keep their prior value and aren't judged here.
+  state.ingredients.forEach(ing => {
+    const entry = state.inventory[ing.id];
+    if (!entry || typeof entry !== 'object') return;
+    const totalMl = calcTotalMl(ing, entry);
+    if (entry.touched) {
+      ing.notAvailable = totalMl <= 0;
+      entry.touched = false;
+      countedThisTime.push({ id: ing.id, name: ing.desc, type: 'ingredient' });
+    } else {
+      if (totalMl > 0 && ing.notAvailable) ing.notAvailable = false;
+      if (entry.measuredAt) notCountedThisTime.push({ id: ing.id, name: ing.desc, type: 'ingredient', lastAt: entry.measuredAt, lastBy: entry.measuredBy });
+    }
+  });
+
+  // Same reconciliation for home-made items tracked in inventory (updateHMInvField/
+  // updateHMInv already keep inv.qty as the canonical current stock in ml/yieldUnit).
+  (state.homeMade||[]).forEach(hm => {
+    const inv = state.hmInventory?.[hm.id];
+    if (!inv) return;
+    const totalStock = inv.qty || 0;
+    if (inv.touched) {
+      hm.notAvailable = totalStock <= 0;
+      inv.touched = false;
+      countedThisTime.push({ id: hm.id, name: hm.name, type: 'homemade' });
+    } else {
+      if (totalStock > 0 && hm.notAvailable) hm.notAvailable = false;
+      if (inv.measuredAt) notCountedThisTime.push({ id: hm.id, name: hm.name, type: 'homemade', lastAt: inv.measuredAt, lastBy: inv.measuredBy });
+    }
+  });
+
+  if (countedThisTime.length) {
+    state.lastStockTakeAt = now;
+    state.lastStockTakeBy = username || state.invUsername || '';
+  }
+  state.lastStockTakeReport = { at: now, by: username || state.invUsername || '', counted: countedThisTime.length, notCounted: notCountedThisTime };
+
   save();
   renderDashboard();
+  renderIngredients();
+  renderInventory(); // re-render with inputs cleared, ready for the next stock take
   updateOrderBadge();
-  toast('✓ Inventory saved by ' + (username||'unknown') + ' — ' + new Date().toLocaleTimeString());
+  toast(countedThisTime.length
+    ? `✓ Inventory saved by ${username||'unknown'} — ${countedThisTime.length} item${countedThisTime.length!==1?'s':''} counted`
+    : 'Nothing new counted this session');
 }
