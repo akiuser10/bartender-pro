@@ -943,6 +943,44 @@ tr.ing-selected { background: rgba(201,168,76,0.05); }
           <tbody id="recv-tbody"></tbody>
         </table>
       </div>
+
+      <!-- Purchase History — look up past orders by date/week/month/custom range -->
+      <div style="margin-top:28px">
+        <div class="screen-title" style="font-size:16px">Purchase History</div>
+        <div class="screen-sub">Look up past orders for a specific date, week, month, or a custom range.</div>
+        <div class="toolbar">
+          <select id="hist-preset" onchange="applyHistoryPreset(this.value)" style="background:var(--surface2);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:6px 10px;color:var(--ice);font-size:12px;font-family:'Inter',sans-serif;outline:none">
+            <option value="today">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="all" selected>All Time</option>
+            <option value="">Custom range</option>
+          </select>
+          <div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:6px 12px;">
+            <label style="font-size:12px;color:var(--smoke)">From</label>
+            <input type="date" id="hist-from" style="background:none;border:none;color:var(--ice);font-size:13px;outline:none" onchange="document.getElementById('hist-preset').value='';renderPurchaseHistory()">
+            <label style="font-size:12px;color:var(--smoke)">To</label>
+            <input type="date" id="hist-to" style="background:none;border:none;color:var(--ice);font-size:13px;outline:none" onchange="document.getElementById('hist-preset').value='';renderPurchaseHistory()">
+          </div>
+          <button class="btn btn-ghost" onclick="exportPurchaseHistory()"><i class="fa-solid fa-download"></i> Export</button>
+        </div>
+        <div class="order-summary-bar" id="hist-summary-bar"></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Date</th>
+              <th>Item</th>
+              <th>Supplier</th>
+              <th>Ordered</th>
+              <th>Received</th>
+              <th>Status</th>
+              <th>Placed By</th>
+              <th>Reason</th>
+            </tr></thead>
+            <tbody id="hist-tbody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- ── WASTAGE ───────────────────────────────────── -->
@@ -3802,6 +3840,8 @@ function renderReceived() {
   const recvUser = document.getElementById('recv-username');
   if (recvUser && state.recvUsername) recvUser.value = state.recvUsername;
 
+  renderPurchaseHistory(); // independent of the "most recent order" view below
+
   if (!state.placedOrders?.length) {
     document.getElementById('recv-summary-bar').innerHTML = '';
     document.getElementById('recv-tbody').innerHTML =
@@ -3939,6 +3979,123 @@ function exportReceived() {
   const blob = new Blob([csv],{type:'text/csv'});
   downloadFile(URL.createObjectURL(blob), `received-${new Date().toISOString().slice(0,10)}.csv`);
   toast('Received list exported');
+}
+
+// ═══════════════════════════════════════════════════════
+// PURCHASE HISTORY — date/week/month/custom-range lookup across all
+// state.placedOrders, independent of the single "most recent order" view above.
+// ═══════════════════════════════════════════════════════
+
+// order.date is stored as en-GB "DD/MM/YYYY" (see confirmPlaceOrder) — parse it
+// into a real Date so it's comparable against the range inputs.
+function parseOrderDate(dmy) {
+  const parts = (dmy||'').split('/');
+  if (parts.length !== 3) return null;
+  const [d, m, y] = parts.map(n => parseInt(n, 10));
+  if (!d || !m || !y) return null;
+  return new Date(y, m - 1, d);
+}
+
+function applyHistoryPreset(preset) {
+  const fromEl = document.getElementById('hist-from');
+  const toEl   = document.getElementById('hist-to');
+  if (!fromEl || !toEl) return;
+  const iso = d => d.toISOString().slice(0, 10);
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  if (preset === 'today') {
+    fromEl.value = iso(today); toEl.value = iso(today);
+  } else if (preset === 'week') {
+    const dayIdx = (today.getDay() + 6) % 7; // Monday = 0
+    const monday = new Date(today); monday.setDate(today.getDate() - dayIdx);
+    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+    fromEl.value = iso(monday); toEl.value = iso(sunday);
+  } else if (preset === 'month') {
+    const first = new Date(today.getFullYear(), today.getMonth(), 1);
+    const last  = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    fromEl.value = iso(first); toEl.value = iso(last);
+  } else if (preset === 'all') {
+    fromEl.value = ''; toEl.value = '';
+  }
+  // 'custom' (empty value): leave whatever the user already typed alone
+  renderPurchaseHistory();
+}
+
+// Flattens every item across every placed order whose order date falls inside
+// the selected range into one list — a single day and a single item pick the
+// same result set (no separate "single date" mode needed).
+function getHistoryFilteredItems() {
+  const fromVal = document.getElementById('hist-from')?.value || '';
+  const toVal   = document.getElementById('hist-to')?.value || '';
+  const from = fromVal ? new Date(fromVal + 'T00:00:00') : null;
+  const to   = toVal   ? new Date(toVal + 'T23:59:59')   : null;
+
+  const rows = [];
+  (state.placedOrders||[]).forEach(order => {
+    const d = parseOrderDate(order.date);
+    if (!d) return;
+    if (from && d < from) return;
+    if (to && d > to) return;
+    (order.items||[]).forEach(item => rows.push({ order, item }));
+  });
+  rows.sort((a, b) => (parseOrderDate(b.order.date)?.getTime()||0) - (parseOrderDate(a.order.date)?.getTime()||0));
+  return rows;
+}
+
+function renderPurchaseHistory() {
+  const tbody = document.getElementById('hist-tbody');
+  if (!tbody) return; // this build's Received screen doesn't have the history section
+  const rows = getHistoryFilteredItems();
+
+  const summaryEl = document.getElementById('hist-summary-bar');
+  if (summaryEl) {
+    const orderIds   = new Set(rows.map(r => r.order.id));
+    const totalQty    = rows.reduce((s,r) => s + (r.item.qtyOrdered||0), 0);
+    const totalValue  = rows.reduce((s,r) => {
+      const unitPrice = r.item.orderUnit === 'btl' ? (r.item.unitCost||0) : (r.item.costPerGram||0);
+      return s + (r.item.qtyOrdered||0) * unitPrice;
+    }, 0);
+    summaryEl.innerHTML = `
+      <div class="order-summary-item"><div class="order-summary-label">Orders</div><div class="order-summary-val">${orderIds.size}</div></div>
+      <div class="order-summary-item"><div class="order-summary-label">Line items</div><div class="order-summary-val">${rows.length}</div></div>
+      <div class="order-summary-item"><div class="order-summary-label">Total qty</div><div class="order-summary-val">${totalQty}</div></div>
+      <div class="order-summary-item"><div class="order-summary-label">Est. value</div><div class="order-summary-val" style="color:var(--gold)">${fmt(totalValue)}</div></div>
+    `;
+  }
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--smoke)">No orders in this date range.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(({order, item}) => {
+    const statusInfo = ORDER_STATUSES.find(s=>s.val===item.status) || ORDER_STATUSES[0];
+    return `<tr>
+      <td style="font-size:12px;color:var(--smoke);white-space:nowrap">${escHtml(order.date)}</td>
+      <td class="td-name">${escHtml(item.desc)}</td>
+      <td style="font-size:12px;color:var(--smoke)">${escHtml(item.supplier||'—')}</td>
+      <td style="font-variant-numeric:tabular-nums">${item.qtyOrdered} ${item.orderUnit||'btl'}</td>
+      <td style="font-variant-numeric:tabular-nums">${item.receivedQty||0}</td>
+      <td><span class="status-badge ${statusInfo.cls}">${statusInfo.label}</span></td>
+      <td style="font-size:12px;color:var(--smoke)">${escHtml(order.placedBy||'—')}</td>
+      <td style="font-size:12px;color:var(--smoke)">${escHtml(order.reasonLabel||'')}</td>
+    </tr>`;
+  }).join('');
+}
+
+function exportPurchaseHistory() {
+  const rows = getHistoryFilteredItems();
+  if (!rows.length) { toast('Nothing to export in this range'); return; }
+  const out = [['Order Date','Item','Supplier','Supplier Code','Qty Ordered','Qty Received','Status','Placed By','Reason','Notes']];
+  rows.forEach(({order, item}) => {
+    out.push([order.date, item.desc, item.supplier||'', item.tahweel||'', item.qtyOrdered, item.receivedQty||0, item.status, order.placedBy||'', order.reasonLabel||'', item.notes||'']);
+  });
+  const csv = out.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+  const blob = new Blob([csv],{type:'text/csv'});
+  const fromVal = document.getElementById('hist-from')?.value || 'all';
+  const toVal   = document.getElementById('hist-to')?.value || 'all';
+  downloadFile(URL.createObjectURL(blob), `purchase-history-${fromVal}_to_${toVal}.csv`);
+  toast('Purchase history exported');
 }
 
 // ═══════════════════════════════════════════════════════

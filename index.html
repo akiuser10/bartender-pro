@@ -347,6 +347,44 @@
           <tbody id="recv-tbody"></tbody>
         </table>
       </div>
+
+      <!-- Purchase History — look up past orders by date/week/month/custom range -->
+      <div style="margin-top:28px">
+        <div class="screen-title" style="font-size:16px">Purchase History</div>
+        <div class="screen-sub">Look up past orders for a specific date, week, month, or a custom range.</div>
+        <div class="toolbar">
+          <select id="hist-preset" onchange="applyHistoryPreset(this.value)" style="background:var(--surface2);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:6px 10px;color:var(--ice);font-size:12px;font-family:'Inter',sans-serif;outline:none">
+            <option value="today">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="all" selected>All Time</option>
+            <option value="">Custom range</option>
+          </select>
+          <div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);padding:6px 12px;">
+            <label style="font-size:12px;color:var(--smoke)">From</label>
+            <input type="date" id="hist-from" style="background:none;border:none;color:var(--ice);font-size:13px;outline:none" onchange="document.getElementById('hist-preset').value='';renderPurchaseHistory()">
+            <label style="font-size:12px;color:var(--smoke)">To</label>
+            <input type="date" id="hist-to" style="background:none;border:none;color:var(--ice);font-size:13px;outline:none" onchange="document.getElementById('hist-preset').value='';renderPurchaseHistory()">
+          </div>
+          <button class="btn btn-ghost" onclick="exportPurchaseHistory()"><i class="fa-solid fa-download"></i> Export</button>
+        </div>
+        <div class="order-summary-bar" id="hist-summary-bar"></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Date</th>
+              <th>Item</th>
+              <th>Supplier</th>
+              <th>Ordered</th>
+              <th>Received</th>
+              <th>Status</th>
+              <th>Placed By</th>
+              <th>Reason</th>
+            </tr></thead>
+            <tbody id="hist-tbody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- ── WASTAGE ───────────────────────────────────── -->
