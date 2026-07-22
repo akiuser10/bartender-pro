@@ -631,7 +631,20 @@ tr.ing-selected { background: rgba(201,168,76,0.05); }
       </div>
       <div id="login-error" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none"></div>
       <button class="btn btn-gold" style="width:100%" onclick="attemptLogin()"><i class="fa-solid fa-right-to-bracket"></i> Log In</button>
-      <div style="text-align:center;margin-top:14px"><a href="#" onclick="showLoginPanel('choice');return false" style="color:var(--smoke);font-size:12px">← Back</a></div>
+      <div style="text-align:center;margin-top:14px"><a href="#" onclick="showLoginPanel('forgot');return false" style="color:var(--smoke);font-size:12px">Forgot password?</a></div>
+      <div style="text-align:center;margin-top:8px"><a href="#" onclick="showLoginPanel('choice');return false" style="color:var(--smoke);font-size:12px">← Back</a></div>
+    </div>
+
+    <div id="login-forgot-wrap" style="display:none">
+      <div style="font-size:12px;color:var(--smoke);margin-bottom:12px">Enter the email and mobile number on file for your account to verify it's you, then set a new password.</div>
+      <div class="input-group"><label class="input-label">Email</label><input type="email" id="forgot-email" autocomplete="username"></div>
+      <div class="input-group"><label class="input-label">Mobile Number on file</label><input type="tel" id="forgot-mobile"></div>
+      <div class="input-group"><label class="input-label">New Password</label><input type="password" id="forgot-new-password" autocomplete="new-password"></div>
+      <div class="input-group"><label class="input-label">Confirm New Password</label><input type="password" id="forgot-new-password2" autocomplete="new-password" onkeydown="if(event.key==='Enter')resetForgottenPassword()"></div>
+      <div id="login-forgot-error" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none"></div>
+      <button class="btn btn-gold" style="width:100%" onclick="resetForgottenPassword()"><i class="fa-solid fa-key"></i> Reset Password</button>
+      <div style="font-size:11px;color:var(--smoke);margin-top:12px;text-align:center">Can't verify your mobile number? Ask a manager to reset your password from Settings → Team Members instead.</div>
+      <div style="text-align:center;margin-top:10px"><a href="#" onclick="showLoginPanel('login');return false" style="color:var(--smoke);font-size:12px">← Back to Log In</a></div>
     </div>
 
     <div id="login-register-wrap" style="display:none">
@@ -1367,7 +1380,10 @@ tr.ing-selected { background: rgba(201,168,76,0.05); }
       <div class="settings-section">
         <div class="settings-section-title"><i class="fa-solid fa-users" style="margin-right:6px"></i>Team Members</div>
         <div id="users-list" style="margin-bottom:12px"></div>
-        <button class="btn btn-ghost btn-sm" onclick="addUser()"><i class="fa-solid fa-plus"></i> Add Team Member</button>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="addUser()"><i class="fa-solid fa-plus"></i> Add Team Member</button>
+          <button class="btn btn-ghost btn-sm" onclick="openChangePasswordModal()"><i class="fa-solid fa-key"></i> Change My Password</button>
+        </div>
       </div>
 
       <!-- Cloud Sync -->
@@ -1490,6 +1506,26 @@ tr.ing-selected { background: rgba(201,168,76,0.05); }
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
         <button class="btn btn-ghost" onclick="closeUserModal()">Cancel</button>
         <button class="btn btn-gold" onclick="saveUserModal()"><i class="fa-solid fa-check"></i> Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CHANGE PASSWORD MODAL -->
+<div class="modal-overlay" id="change-password-modal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <h2 class="modal-title"><i class="fa-solid fa-key"></i> Change Password</h2>
+      <button class="modal-close" onclick="closeChangePasswordModal()">×</button>
+    </div>
+    <div class="modal-body" style="padding:20px">
+      <div class="input-group"><label class="input-label">Current Password</label><input type="password" id="cp-current" autocomplete="current-password"></div>
+      <div class="input-group"><label class="input-label">New Password</label><input type="password" id="cp-new" autocomplete="new-password"></div>
+      <div class="input-group"><label class="input-label">Confirm New Password</label><input type="password" id="cp-new2" autocomplete="new-password" onkeydown="if(event.key==='Enter')saveChangedPassword()"></div>
+      <div id="cp-error" style="color:var(--danger);font-size:12px;margin-bottom:10px;display:none"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+        <button class="btn btn-ghost" onclick="closeChangePasswordModal()">Cancel</button>
+        <button class="btn btn-gold" onclick="saveChangedPassword()"><i class="fa-solid fa-check"></i> Save</button>
       </div>
     </div>
   </div>
@@ -4907,15 +4943,16 @@ function initAuthGate() {
   showLoginPanel('choice');
 }
 
-// panel: 'choice' | 'login' | 'register'
+// panel: 'choice' | 'login' | 'register' | 'forgot'
 function showLoginPanel(panel) {
-  const wraps = { choice:'login-choice-wrap', login:'login-form-wrap', register:'login-register-wrap' };
+  const wraps = { choice:'login-choice-wrap', login:'login-form-wrap', register:'login-register-wrap', forgot:'login-forgot-wrap' };
   Object.entries(wraps).forEach(([key, id]) => {
     const el = document.getElementById(id);
     if (el) el.style.display = (key === panel) ? 'block' : 'none';
   });
   const loginErr = document.getElementById('login-error'); if (loginErr) loginErr.style.display = 'none';
   const regErr = document.getElementById('login-register-error'); if (regErr) regErr.style.display = 'none';
+  const forgotErr = document.getElementById('login-forgot-error'); if (forgotErr) forgotErr.style.display = 'none';
   if (panel === 'register') applyRegisterCompanyLock();
 }
 
@@ -4975,6 +5012,35 @@ async function attemptLogin() {
   if (user.password !== hash) { showLoginError('Invalid email or password'); return; }
   loginAs(user, true);
   toast(`Welcome back, ${user.name}`);
+}
+
+// No email server exists to send a real reset link, so "forgot password"
+// verifies identity with the mobile number already on file for that account
+// instead — good enough for a small trusted team, not a real security backend.
+async function resetForgottenPassword() {
+  const email = document.getElementById('forgot-email')?.value.trim() || '';
+  const mobile = document.getElementById('forgot-mobile')?.value.trim() || '';
+  const pw = document.getElementById('forgot-new-password')?.value || '';
+  const pw2 = document.getElementById('forgot-new-password2')?.value || '';
+  const errEl = document.getElementById('login-forgot-error');
+  const showErr = (msg) => { if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } };
+  if (errEl) errEl.style.display = 'none';
+  if (!email || !mobile || !pw || !pw2) { showErr('Fill in all fields'); return; }
+  if (pw.length < 4) { showErr('Password must be at least 4 characters'); return; }
+  if (pw !== pw2) { showErr('Passwords do not match'); return; }
+
+  const user = findUserByEmail(email);
+  const digitsOnly = (s) => (s || '').replace(/[^0-9]/g, '');
+  const enteredMobile = digitsOnly(mobile);
+  if (!user || !enteredMobile || digitsOnly(user.mobile) !== enteredMobile) {
+    showErr("We couldn't verify that account. Ask a manager to reset your password from Settings → Team Members instead.");
+    return;
+  }
+  user.password = await sha256Hex(pw);
+  save();
+  toast(`✓ Password reset — log in with your new password`);
+  showLoginPanel('login');
+  const emailEl = document.getElementById('login-email'); if (emailEl) emailEl.value = email;
 }
 
 async function registerUser() {
@@ -5048,6 +5114,41 @@ function logout() {
   showLoginPanel('choice');
   const emailEl = document.getElementById('login-email'); if (emailEl) emailEl.value = '';
   const pwEl = document.getElementById('login-password'); if (pwEl) pwEl.value = '';
+}
+
+// ═══════════════════════════════════════════════════════
+// CHANGE PASSWORD (Settings) — for the currently logged-in user
+// ═══════════════════════════════════════════════════════
+function openChangePasswordModal() {
+  if (!currentUser) { toast('Log in first'); return; }
+  const sv = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  sv('cp-current', ''); sv('cp-new', ''); sv('cp-new2', '');
+  const errEl = document.getElementById('cp-error'); if (errEl) errEl.style.display = 'none';
+  document.getElementById('change-password-modal').classList.add('open');
+}
+function closeChangePasswordModal() { document.getElementById('change-password-modal').classList.remove('open'); }
+
+async function saveChangedPassword() {
+  const cur = document.getElementById('cp-current')?.value || '';
+  const pw  = document.getElementById('cp-new')?.value || '';
+  const pw2 = document.getElementById('cp-new2')?.value || '';
+  const errEl = document.getElementById('cp-error');
+  const showErr = (msg) => { if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } };
+  if (errEl) errEl.style.display = 'none';
+  if (!currentUser) { showErr('You are not logged in'); return; }
+  if (!cur || !pw || !pw2) { showErr('Fill in all fields'); return; }
+  // Re-resolve the live object from state.users — a cloud sync while logged in
+  // can replace state.users wholesale, leaving currentUser pointing at a stale copy.
+  const liveUser = findUserByEmail(currentUser.email) || currentUser;
+  const curHash = await sha256Hex(cur);
+  if (curHash !== liveUser.password) { showErr('Current password is incorrect'); return; }
+  if (pw.length < 4) { showErr('New password must be at least 4 characters'); return; }
+  if (pw !== pw2) { showErr('New passwords do not match'); return; }
+  liveUser.password = await sha256Hex(pw);
+  currentUser = liveUser;
+  save();
+  closeChangePasswordModal();
+  toast('✓ Password changed');
 }
 
 // ═══════════════════════════════════════════════════════

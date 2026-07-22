@@ -30,15 +30,16 @@ function initAuthGate() {
   showLoginPanel('choice');
 }
 
-// panel: 'choice' | 'login' | 'register'
+// panel: 'choice' | 'login' | 'register' | 'forgot'
 function showLoginPanel(panel) {
-  const wraps = { choice:'login-choice-wrap', login:'login-form-wrap', register:'login-register-wrap' };
+  const wraps = { choice:'login-choice-wrap', login:'login-form-wrap', register:'login-register-wrap', forgot:'login-forgot-wrap' };
   Object.entries(wraps).forEach(([key, id]) => {
     const el = document.getElementById(id);
     if (el) el.style.display = (key === panel) ? 'block' : 'none';
   });
   const loginErr = document.getElementById('login-error'); if (loginErr) loginErr.style.display = 'none';
   const regErr = document.getElementById('login-register-error'); if (regErr) regErr.style.display = 'none';
+  const forgotErr = document.getElementById('login-forgot-error'); if (forgotErr) forgotErr.style.display = 'none';
   if (panel === 'register') applyRegisterCompanyLock();
 }
 
@@ -98,6 +99,35 @@ async function attemptLogin() {
   if (user.password !== hash) { showLoginError('Invalid email or password'); return; }
   loginAs(user, true);
   toast(`Welcome back, ${user.name}`);
+}
+
+// No email server exists to send a real reset link, so "forgot password"
+// verifies identity with the mobile number already on file for that account
+// instead — good enough for a small trusted team, not a real security backend.
+async function resetForgottenPassword() {
+  const email = document.getElementById('forgot-email')?.value.trim() || '';
+  const mobile = document.getElementById('forgot-mobile')?.value.trim() || '';
+  const pw = document.getElementById('forgot-new-password')?.value || '';
+  const pw2 = document.getElementById('forgot-new-password2')?.value || '';
+  const errEl = document.getElementById('login-forgot-error');
+  const showErr = (msg) => { if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } };
+  if (errEl) errEl.style.display = 'none';
+  if (!email || !mobile || !pw || !pw2) { showErr('Fill in all fields'); return; }
+  if (pw.length < 4) { showErr('Password must be at least 4 characters'); return; }
+  if (pw !== pw2) { showErr('Passwords do not match'); return; }
+
+  const user = findUserByEmail(email);
+  const digitsOnly = (s) => (s || '').replace(/[^0-9]/g, '');
+  const enteredMobile = digitsOnly(mobile);
+  if (!user || !enteredMobile || digitsOnly(user.mobile) !== enteredMobile) {
+    showErr("We couldn't verify that account. Ask a manager to reset your password from Settings → Team Members instead.");
+    return;
+  }
+  user.password = await sha256Hex(pw);
+  save();
+  toast(`✓ Password reset — log in with your new password`);
+  showLoginPanel('login');
+  const emailEl = document.getElementById('login-email'); if (emailEl) emailEl.value = email;
 }
 
 async function registerUser() {
@@ -171,4 +201,39 @@ function logout() {
   showLoginPanel('choice');
   const emailEl = document.getElementById('login-email'); if (emailEl) emailEl.value = '';
   const pwEl = document.getElementById('login-password'); if (pwEl) pwEl.value = '';
+}
+
+// ═══════════════════════════════════════════════════════
+// CHANGE PASSWORD (Settings) — for the currently logged-in user
+// ═══════════════════════════════════════════════════════
+function openChangePasswordModal() {
+  if (!currentUser) { toast('Log in first'); return; }
+  const sv = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  sv('cp-current', ''); sv('cp-new', ''); sv('cp-new2', '');
+  const errEl = document.getElementById('cp-error'); if (errEl) errEl.style.display = 'none';
+  document.getElementById('change-password-modal').classList.add('open');
+}
+function closeChangePasswordModal() { document.getElementById('change-password-modal').classList.remove('open'); }
+
+async function saveChangedPassword() {
+  const cur = document.getElementById('cp-current')?.value || '';
+  const pw  = document.getElementById('cp-new')?.value || '';
+  const pw2 = document.getElementById('cp-new2')?.value || '';
+  const errEl = document.getElementById('cp-error');
+  const showErr = (msg) => { if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } };
+  if (errEl) errEl.style.display = 'none';
+  if (!currentUser) { showErr('You are not logged in'); return; }
+  if (!cur || !pw || !pw2) { showErr('Fill in all fields'); return; }
+  // Re-resolve the live object from state.users — a cloud sync while logged in
+  // can replace state.users wholesale, leaving currentUser pointing at a stale copy.
+  const liveUser = findUserByEmail(currentUser.email) || currentUser;
+  const curHash = await sha256Hex(cur);
+  if (curHash !== liveUser.password) { showErr('Current password is incorrect'); return; }
+  if (pw.length < 4) { showErr('New password must be at least 4 characters'); return; }
+  if (pw !== pw2) { showErr('New passwords do not match'); return; }
+  liveUser.password = await sha256Hex(pw);
+  currentUser = liveUser;
+  save();
+  closeChangePasswordModal();
+  toast('✓ Password changed');
 }
