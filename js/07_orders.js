@@ -27,7 +27,11 @@ function getOrderItems() {
     const totalMl  = calcTotalMl(ing, entry);
     const minMl    = (ing.minPar||0) * unitMl;  // liquid: btl×ml; food: grams
     const maxMl    = (ing.maxPar||0) * unitMl;
-    const gapMl    = Math.max(0, maxMl - totalMl);
+    // Target to restock up to: max par when it's configured (never suggest ordering
+    // past it), falling back to min par when only that's set, so the suggestion is
+    // still sensible rather than 0. The order qty field stays freely editable either way.
+    const targetMl = maxMl > 0 ? maxMl : minMl;
+    const gapMl    = Math.max(0, targetMl - totalMl);
     const orderUnit = getIngUnit(ing); // 'btl', 'keg', 'g', or 'nos'
     // How many units to order:
     // liquid → ceil(gap ml / ml-per-unit) = number of bottles/kegs
@@ -35,9 +39,9 @@ function getOrderItems() {
     let btlsNeeded = isAnyLiq
       ? (unitMl > 0 ? Math.ceil(gapMl / unitMl) : 0)
       : Math.round(gapMl); // grams
-    // No par level configured (maxPar 0) means the gap calc above comes out to 0 —
-    // still suggest at least 1 unit for an out-of-stock item so it's actually
-    // orderable by default instead of silently sitting at a 0 quantity.
+    // No par level configured at all (min and max both 0) means the gap calc above
+    // comes out to 0 — still suggest at least 1 unit for an out-of-stock item so
+    // it's actually orderable by default instead of silently sitting at 0.
     if (btlsNeeded <= 0 && totalMl <= 0) btlsNeeded = 1;
     const saved = state.orders?.[ing.id];
     return {
