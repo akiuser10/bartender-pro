@@ -131,6 +131,18 @@ function initCloudSync() {
     cloudPull(true);
     startPolling();
   }
+
+  // Mobile Safari suspends JS timers while backgrounded, so the 30s poll
+  // doesn't fire while the app is closed/switched away from — without this,
+  // reopening the app can silently show stale data for up to 30s, and any
+  // edit made against that stale state risks overwriting a teammate's newer
+  // push. Pulling immediately on regaining visibility closes that window.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && state.jsonbinId && state.jsonbinKey) {
+      cloudPull(true);
+      if (!_pollTimer) startPolling();
+    }
+  });
 }
 
 function startPolling() {
@@ -150,7 +162,16 @@ async function cloudPoll() {
     const resp = await fetch(`https://api.jsonbin.io/v3/b/${state.jsonbinId}/latest`, {
       headers: { 'X-Master-Key': state.jsonbinKey, 'X-Bin-Meta': 'false' }
     });
-    if (!resp.ok) return; // silent on poll errors
+    if (!resp.ok) {
+      // Auth errors are the one poll failure worth surfacing even though this
+      // runs silently every 30s — a bad/rotated key means edits on this device
+      // are quietly never leaving it (save() only pushes once _cloudSyncReady
+      // is true), which is invisible unless we say so.
+      if (resp.status === 401 || resp.status === 403) {
+        setSyncStatus('☁ Auth error — check Master Key in Settings', 'var(--danger)');
+      }
+      return;
+    }
     _cloudSyncReady = true;
     const data = await resp.json();
     if (!data.record) return;
@@ -187,6 +208,17 @@ function renderAll() {
   renderIngredients();
   renderInventory();
   renderRecipes();
+  renderBatch();
+  renderHomeMade();
+  updateOrderBadge();
+  updateRecvBadge();
+  // Also refresh whichever screen is currently on-screen (orders/received/
+  // suppliers/settings aren't in the always-render list above), so a synced
+  // update from another device is visible immediately without switching tabs.
+  const activeScreen = document.querySelector('.screen.active');
+  const activeId = activeScreen?.id?.replace('screen-', '');
+  const extraFns = { orders:renderOrders, received:renderReceived, suppliers:renderSuppliersScreen, settings:renderSettings };
+  if (activeId && extraFns[activeId]) extraFns[activeId]();
 }
 
 function broadcastState() {
@@ -271,11 +303,13 @@ async function cloudPull(silent=false) {
       headers: { 'X-Master-Key': state.jsonbinKey }
     });
     if (!resp.ok) {
-      if (!silent) {
-        if (resp.status === 401 || resp.status === 403)
-          setSyncStatus('☁ Auth error — check Master Key in Settings', 'var(--danger)');
-        else setSyncStatus(`☁ Pull failed (${resp.status})`, 'var(--warning)');
-      }
+      // Always surface a real failure, even on the silent startup pull — a
+      // device whose initial pull fails never sets _cloudSyncReady, so save()
+      // silently stops pushing that device's edits with zero indication why.
+      // Only the "Pulling…" in-progress text above is worth hiding on silent calls.
+      if (resp.status === 401 || resp.status === 403)
+        setSyncStatus('☁ Auth error — check Master Key in Settings', 'var(--danger)');
+      else setSyncStatus(`☁ Pull failed (${resp.status})`, 'var(--warning)');
       return;
     }
     _cloudSyncReady = true;
@@ -300,7 +334,7 @@ async function cloudPull(silent=false) {
     }
   } catch(e) {
     console.error('[cloudPull]', e);
-    if (!silent) setSyncStatus('☁ Pull failed — ' + (e?.message || 'check connection'), 'var(--warning)');
+    setSyncStatus('☁ Pull failed — ' + (e?.message || 'check connection'), 'var(--warning)');
   }
 }
 
