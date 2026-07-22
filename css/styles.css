@@ -383,6 +383,18 @@ textarea.ai-prompt {
 .alert-item-detail { font-size: 11px; color: var(--smoke); }
 .alert-item-ml { font-size: 12px; color: var(--danger); font-weight: 600; margin-left: auto; }
 
+/* Compact tile grid — for long lists (e.g. "not counted this stock take")
+   where a full-width row per item would take too much vertical space. */
+.tile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.tile-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  background: rgba(224,82,82,0.06); border: 1px solid rgba(224,82,82,0.15);
+  border-radius: var(--radius-sm); padding: 8px 10px;
+}
+.tile-item i { color: var(--warning); font-size: 11px; margin-top: 2px; flex-shrink: 0; }
+.tile-item-name { font-size: 12px; font-weight: 500; color: var(--ice); line-height: 1.3; }
+.tile-item-detail { font-size: 10px; color: var(--smoke); margin-top: 2px; }
+
 /* ── TOAST ───────────────────────────────────────────────── */
 #toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);

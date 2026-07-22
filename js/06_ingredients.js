@@ -962,13 +962,13 @@ function renderStockTakeReport() {
       <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--warning);margin:16px 0 8px">
         <i class="fa-solid fa-triangle-exclamation"></i> Not counted this stock take (${notCounted.length})
       </div>
-      <div class="alert-list">
+      <div class="tile-grid">
         ${notCounted.map(it => `
-          <div class="alert-item">
-            <i class="fa-solid fa-clock-rotate-left" style="color:var(--warning)"></i>
+          <div class="tile-item">
+            <i class="fa-solid fa-clock-rotate-left"></i>
             <div>
-              <div class="alert-item-name">${escHtml(it.name)} ${it.type==='homemade' ? '<span style="font-size:10px;color:var(--smoke)">(home-made)</span>' : ''}</div>
-              <div class="alert-item-detail">Last counted ${escHtml(it.lastAt||'—')}${it.lastBy ? ` by ${escHtml(it.lastBy)}` : ''}</div>
+              <div class="tile-item-name">${escHtml(it.name)} ${it.type==='homemade' ? '<span style="font-size:9px;color:var(--smoke)">(HM)</span>' : ''}</div>
+              <div class="tile-item-detail">${escHtml(it.lastAt||'—')}${it.lastBy ? ` · ${escHtml(it.lastBy)}` : ''}</div>
             </div>
           </div>`).join('')}
       </div>
