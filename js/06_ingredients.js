@@ -1140,37 +1140,30 @@ function saveInventory() {
   const countedThisTime = [];
   const notCountedThisTime = [];
 
-  // Reconcile availability against what was actually counted this session:
-  // an item explicitly counted at 0 (both sealed & open/grams) goes "not available";
-  // an item counted with real stock comes back off the unavailable list, even if it
-  // was flagged before. Untouched fields keep their prior value and aren't judged here.
+  // "Not available" itself is now computed live from current stock in renderDashboard()
+  // (same treatment as Low Home-Made & Batch), so all that's needed here is tracking
+  // which items were actually counted this session vs skipped, for the report below.
   state.ingredients.forEach(ing => {
     const entry = state.inventory[ing.id];
     if (!entry || typeof entry !== 'object') return;
-    const totalMl = calcTotalMl(ing, entry);
     if (entry.touched) {
-      ing.notAvailable = totalMl <= 0;
       entry.touched = false;
       countedThisTime.push({ id: ing.id, name: ing.desc, type: 'ingredient' });
-    } else {
-      if (totalMl > 0 && ing.notAvailable) ing.notAvailable = false;
-      if (entry.measuredAt) notCountedThisTime.push({ id: ing.id, name: ing.desc, type: 'ingredient', lastAt: entry.measuredAt, lastBy: entry.measuredBy });
+    } else if (entry.measuredAt) {
+      notCountedThisTime.push({ id: ing.id, name: ing.desc, type: 'ingredient', lastAt: entry.measuredAt, lastBy: entry.measuredBy });
     }
   });
 
-  // Same reconciliation for home-made items tracked in inventory (updateHMInvField/
+  // Same bookkeeping for home-made items tracked in inventory (updateHMInvField/
   // updateHMInv already keep inv.qty as the canonical current stock in ml/yieldUnit).
   (state.homeMade||[]).forEach(hm => {
     const inv = state.hmInventory?.[hm.id];
     if (!inv) return;
-    const totalStock = inv.qty || 0;
     if (inv.touched) {
-      hm.notAvailable = totalStock <= 0;
       inv.touched = false;
       countedThisTime.push({ id: hm.id, name: hm.name, type: 'homemade' });
-    } else {
-      if (totalStock > 0 && hm.notAvailable) hm.notAvailable = false;
-      if (inv.measuredAt) notCountedThisTime.push({ id: hm.id, name: hm.name, type: 'homemade', lastAt: inv.measuredAt, lastBy: inv.measuredBy });
+    } else if (inv.measuredAt) {
+      notCountedThisTime.push({ id: hm.id, name: hm.name, type: 'homemade', lastAt: inv.measuredAt, lastBy: inv.measuredBy });
     }
   });
 

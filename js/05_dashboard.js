@@ -96,8 +96,14 @@ function renderDashboard() {
   const hmList = document.getElementById('low-hm-list');
   const unavailEl = document.getElementById('unavailable-list');
   if (unavailEl) {
-    const unavailIngs = state.ingredients.filter(i => i.notAvailable);
-    const unavailHM   = (state.homeMade||[]).filter(h => h.notAvailable);
+    // Same live-from-current-stock treatment as "Low Home-Made & Batch" below —
+    // no session bookkeeping required, an item at 0 in inventory shows up here
+    // automatically. The manual notAvailable flag (ban icon / dashboard button)
+    // still applies on top, for items pulled off menu for reasons other than stock.
+    const unavailIngs = state.ingredients.filter(i =>
+      i.notAvailable || (i.inInventory && calcTotalMl(i, getInvEntry(i.id)) <= 0));
+    const unavailHM   = (state.homeMade||[]).filter(h =>
+      h.notAvailable || (h.trackInv && (state.hmInventory?.[h.id]?.qty||0) <= 0));
     if (!unavailIngs.length && !unavailHM.length) {
       unavailEl.innerHTML = `<div style="font-size:12px;color:var(--smoke);padding:4px 0">All ingredients available</div>`;
     } else {
